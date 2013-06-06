@@ -5,7 +5,7 @@ find_package(CUDA)
 
 include_directories(${QT_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_20,code=sm_20)
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_11,code=sm_11)
 set(blobtracker_SRCS webcamtest.cpp camarray.cpp camera.cpp main.cpp)
 qt4_automoc(${blobtracker_SRCS})
 add_executable(blobtracker ${blobtracker_SRCS})

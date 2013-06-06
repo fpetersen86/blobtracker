@@ -16,8 +16,8 @@ public:
 	QImage i;
 	QFuture<void> future;
 	
-protected:
-	virtual void paintEvent(QPaintEvent* e);
+// protected:
+// 	virtual void paintEvent(QPaintEvent* e);
 
 };
 

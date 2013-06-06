@@ -14,7 +14,7 @@ class CamArray
 public:
     CamArray(webcamtest* p);
     virtual ~CamArray();
-	Camera *cams[64]; // 64 = max# of cameras in Linux
+	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
 };
 

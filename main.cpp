@@ -5,7 +5,7 @@
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
-    webcamtest foo;
-    foo.show();
-    return app.exec();
+// 	webcamtest foo;
+// 	foo.show();
+	return app.exec();
 }

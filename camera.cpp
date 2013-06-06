@@ -11,7 +11,7 @@
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 const int num_buffers = 2;
 
-Camera::Camera(const char* device)
+Camera::Camera(const char* device, const int id)
 {
 	
 	fd = open(device, O_RDWR /* required */ | O_NONBLOCK, 0);
@@ -142,10 +142,10 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 		for (int x = 0; x < 320; x++)
 		{
 			val = buf[pos];
-			w->i.setPixel(x,y, qRgb(val, val, val));
+// 			w->i.setPixel(x,y, qRgb(val, val, val));
 			pos+=2;
 		}
-	w->update();
+// 	w->update();
 	
 }
 

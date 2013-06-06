@@ -11,14 +11,15 @@ CamArray::CamArray(webcamtest* p)
 	for(int i = 0; i < camList.size(); i++)
 	{
 		c = camList.at(i);
-		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str());
+		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i);
 	}
 	numCams = camList.size();
-	cams[0]->w = p;
+// 	cams[0]->w = p;
 	//cams[0]->capture();
 	//cams[0]->loop();
 	
 }
+
 
 CamArray::~CamArray()
 {

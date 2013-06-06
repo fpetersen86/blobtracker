@@ -20,12 +20,11 @@ webcamtest::~webcamtest()
 	
 }
 
-void webcamtest::paintEvent(QPaintEvent* e)
-{
-	printf("paint");
-	QPainter painter(this);
-	painter.drawImage(QRect(0,0,320,240),i);
-}
+// void webcamtest::paintEvent(QPaintEvent* e)
+// {
+// 	QPainter painter(this);
+// 	painter.drawImage(QRect(0,0,320,240),i);
+// }
 
 
 #include "webcamtest.moc"

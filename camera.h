@@ -15,7 +15,7 @@ class Camera
 	};
 
 public:
-    Camera(const char* device);
+    Camera( const char* device, const int id );
     virtual ~Camera();
 		
 	void capture();
