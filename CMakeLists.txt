@@ -8,7 +8,7 @@ include_directories(${QT_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_11,code=sm_11)
 set(blobtracker_SRCS webcamtest.cpp camarray.cpp camera.cpp main.cpp)
 qt4_automoc(${blobtracker_SRCS})
-add_executable(blobtracker ${blobtracker_SRCS})
+cuda_add_executable(blobtracker ${blobtracker_SRCS})
 target_link_libraries(blobtracker ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
 install(TARGETS blobtracker RUNTIME DESTINATION bin)
 
