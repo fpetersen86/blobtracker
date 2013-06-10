@@ -18,7 +18,7 @@ class Camera : public QThread
 	};
 
 public:
-    Camera(const char *device, const int id, QSemaphore *sem);
+    Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer);
     virtual ~Camera();
 	
 	void run();
@@ -30,6 +30,7 @@ public:
 
 private:
 	QSemaphore *sem;
+	char* myBuffer;
 	int id;
 	void setParameters();
 	int fd;

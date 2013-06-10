@@ -8,12 +8,16 @@
 #include <unistd.h> // close
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
-const int num_buffers = 2;
+const int num_buffers = 1;
 
-Camera::Camera(const char *device, const int id, QSemaphore *sem) : QThread(NULL)
+const int xSize = 320;
+const int ySize = 240;
+
+Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer) : QThread(NULL)
 {
 	this->id = id;
 	this->sem = sem;
+	this->myBuffer = myBuffer;
 	fd = open(device, O_RDWR /* required */ | O_NONBLOCK, 0);
 	qDebug("Camera initialised: dev %s, id %d, fd %d", device, id, fd);
 	
@@ -21,7 +25,7 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem) : QThread(NULL
 
 	CLEAR(req);
 
-	req.count = 2;
+	req.count = num_buffers;
 	req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	req.memory = V4L2_MEMORY_MMAP;
 
@@ -137,16 +141,20 @@ void Camera::loop()
 
 void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 {
-	unsigned int pos = 0, val;
+	unsigned int pos = 0, offset = id*xSize*ySize, val;
 	char * buf = (char*) bufStart;
-	for (int y = 0; y < 240; y++)
-		for (int x = 0; x < 320; x++)
+	
+	for (int y = 0; y < ySize; y++)
+	{
+		for (int x = 0; x < xSize; x++)
 		{
 			val = buf[pos];
 // 			w->i.setPixel(x,y, qRgb(val, val, val));
+			myBuffer[offset + x] = val;
 			pos+=2;
 		}
-// 	w->update();
+		offset += xSize;
+	}
 	sem->release(1);
 }
 
