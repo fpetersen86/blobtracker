@@ -32,6 +32,12 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 	fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
 	ioctl(fd, VIDIOC_S_FMT, &fmt);
 	
+	v4l2_streamparm strp;
+	ioctl(fd, VIDIOC_G_PARM, &strp);
+	strp.capture.timeperframe.numerator = 1;
+	strp.capture.timeperframe.denominator = 1;
+	ioctl(fd, VIDIOC_S_PARM, &strp);
+	
 	
 //
 	
