@@ -3,22 +3,25 @@
 
 #include <stdlib.h>
 #include <Qt/QtGui>
+#include <Qt/QtCore>
+
 #include "webcamtest.h"
 
 class webcamtest;
 
-class Camera
+class Camera : public QThread
 {
-	struct buffer {
+	struct buffer
+	{
         void   *start;
         size_t  length;
 	};
 
 public:
-    Camera( const char* device, const int id );
+    Camera(const char *device, const int id, QSemaphore *sem);
     virtual ~Camera();
-		
-	void capture();
+	
+	void run();
 	void stop();
 	void loop();
     void doOurStuff(void* bufStart, unsigned int size, int index);
@@ -26,6 +29,8 @@ public:
 	webcamtest *w;
 
 private:
+	QSemaphore *sem;
+	int id;
 	void setParameters();
 	int fd;
 	bool stopped;

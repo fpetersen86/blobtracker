@@ -6,16 +6,16 @@
 #include <string.h> // memset
 #include <fcntl.h> // open
 #include <unistd.h> // close
-#include <QDebug>
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 const int num_buffers = 2;
 
-Camera::Camera(const char* device, const int id)
+Camera::Camera(const char *device, const int id, QSemaphore *sem) : QThread(NULL)
 {
-	
+	this->id = id;
+	this->sem = sem;
 	fd = open(device, O_RDWR /* required */ | O_NONBLOCK, 0);
-//	qDebug() << "device = " << device << " fd =  " << fd;
+	qDebug("Camera initialised: dev %s, id %d, fd %d", device, id, fd);
 	
 	struct v4l2_requestbuffers req;
 
@@ -62,7 +62,7 @@ Camera::~Camera()
 	close(fd);
 }
 
-void Camera::capture()
+void Camera::run()
 {
 	unsigned int i;
 	enum v4l2_buf_type type;
@@ -83,6 +83,7 @@ void Camera::capture()
 	if (-1 == ioctl(fd, VIDIOC_STREAMON, &type))
 		printf("VIDIOC_STREAMON");
 	stopped = false;
+	qDebug() << "run id: " << id;
 	loop();
 }
 
@@ -146,7 +147,7 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 			pos+=2;
 		}
 // 	w->update();
-	
+	sem->release(1);
 }
 
 

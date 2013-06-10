@@ -10,7 +10,7 @@ webcamtest::webcamtest()
 	resize(320,240);
 	ca = new CamArray(this);
 	i = QImage(320, 240, QImage::Format_RGB32);
-	future = QtConcurrent::run(ca->cams[0], &Camera::capture);
+//future = QtConcurrent::run(ca->cams[0], &Camera::capture);
 }
 
 webcamtest::~webcamtest()

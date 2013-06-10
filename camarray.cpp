@@ -2,21 +2,34 @@
 
 CamArray::CamArray(webcamtest* p)
 {
+	
+	//initialise cams
 	QDir d("/dev/");
 	d.setFilter(QDir::System);
 	d.setNameFilters(QStringList("*video*"));
 	QStringList camList = d.entryList();
-
+	numCams = camList.size();
 	QString c;
-	for(int i = 0; i < camList.size(); i++)
+	QSemaphore *sem = new QSemaphore(numCams);
+	sem->acquire(numCams);
+	for(int i = 0; i < numCams; i++)
 	{
 		c = camList.at(i);
-		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i);
+		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem);
 	}
-	numCams = camList.size();
-// 	cams[0]->w = p;
-	//cams[0]->capture();
-	//cams[0]->loop();
+	
+	//start capturing
+	for(int i = 0; i < numCams; i++)
+	{
+		cams[i]->start();
+	}
+	
+	
+	while(true)
+	{
+		sem->acquire(numCams);
+		//qDebug("available: %d", sem->available());
+	}
 	
 }
 

@@ -16,6 +16,9 @@ public:
     virtual ~CamArray();
 	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
+	
+private:
+	QSemaphore *sem;
 };
 
 #endif // CAMARRAY_H
