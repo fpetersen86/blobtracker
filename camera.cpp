@@ -27,15 +27,17 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ioctl(fd, VIDIOC_G_FMT, &fmt);
 	
-	fmt.pix.width = xSize;
-	fmt.pix.height = ySize;
-	fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
+	fmt.fmt.pix.width = xSize;
+	fmt.fmt.pix.height = ySize;
+	fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
 	ioctl(fd, VIDIOC_S_FMT, &fmt);
 	
 	v4l2_streamparm strp;
 	ioctl(fd, VIDIOC_G_PARM, &strp);
-	strp.capture.timeperframe.numerator = 1;
-	strp.capture.timeperframe.denominator = 1;
+	
+	qDebug("Time = %d/%d", strp.parm.capture.timeperframe.numerator, strp.parm.capture.timeperframe.denominator);
+	strp.parm.capture.timeperframe.numerator = 1;
+	strp.parm.capture.timeperframe.denominator = 1;
 	ioctl(fd, VIDIOC_S_PARM, &strp);
 	
 	
