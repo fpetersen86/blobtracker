@@ -11,7 +11,7 @@ __global__ void findBlobs(char *image, float *output, int width, int height, flo
     int elemID = y*width + x;                              // index within linear array
 
 	// compute cells needed for update (neighbors + central element)
-	int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
+	/*int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
 	float leftNeighb = input[elemID - borderFlag];
 	borderFlag = (x < (width - 1));
 	float rightNeighb = input[elemID + borderFlag];
@@ -19,7 +19,7 @@ __global__ void findBlobs(char *image, float *output, int width, int height, flo
 	float topNeighb = input[elemID - (borderFlag & width)];	
 	borderFlag = -(y < (height - 1));
 	float bottomNeighb = input[elemID + (borderFlag & width)];
-	float currElement = input[elemID];
+	float currElement = input[elemID];*/
 	
 	int halfWidth = width / 2;
 	int halfHeight = height / 2;
@@ -39,7 +39,7 @@ __global__ void findBlobs(char *image, float *output, int width, int height, flo
 	float sourceX = halfWidth + theta * newX * zoom;
 	float sourceY = halfHeight + theta * newY * zoom;
 	
-	output[elemID] = image[sourceY*width + sourceX];
+//	output[elemID] = image[sourceY*width + sourceX];
 	
 	//output[elemID] = currElement + mu * ( (leftNeighb-currElement) + (rightNeighb-currElement) + (bottomNeighb-currElement) + (topNeighb-currElement) );
 }
