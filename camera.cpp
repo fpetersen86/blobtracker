@@ -12,6 +12,7 @@ const int num_buffers = 1;
 
 const int xSize = 320;
 const int ySize = 240;
+const int framerate = 125;
 
 Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer) : QThread(NULL)
 {
@@ -20,6 +21,26 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 	this->myBuffer = myBuffer;
 	fd = open(device, O_RDWR /* required */ | O_NONBLOCK, 0);
 	qDebug("Camera initialised: dev %s, id %d, fd %d", device, id, fd);
+	
+	// set up format and framerate
+	struct v4l2_format fmt;
+	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	ioctl(fd, VIDIOC_G_FMT, &fmt);
+	
+	fmt.pix.width = xSize;
+	fmt.pix.height = ySize;
+	fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
+	ioctl(fd, VIDIOC_S_FMT, &fmt);
+	
+	v4l2_streamparm strp;
+	ioctl(fd, VIDIOC_G_PARM, &strp);
+	strp.capture.timeperframe.numerator = 1;
+	strp.capture.timeperframe.denominator = 1;
+	ioctl(fd, VIDIOC_S_PARM, &strp);
+	
+	
+//
+	
 	
 	struct v4l2_requestbuffers req;
 
