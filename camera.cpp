@@ -44,10 +44,6 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 	//qDebug() << "ioctl " << ioctl(fd, VIDIOC_S_PARM, &strp) << " errno " << errno;
 	
 	
-
-// 	video_set_format(fd, xSize, ySize);
-// 	video_set_framerate(fd);
-	
 	struct v4l2_requestbuffers req;
 
 	CLEAR(req);

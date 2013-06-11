@@ -10,10 +10,10 @@ __global__ void lensCorrection(char *image, char *output, int width, int height,
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width + x;                              // index within linear array
+    int elemID = y*width2 + x;                              // index within linear array
     
-    //x += (width-width2)/2;
-	//y += (height-height2)/2;
+    x += (width-width2)/2;
+	y += (height-height2)/2;
 	
 	int halfWidth = width / 2;
 	int halfHeight = height / 2;
@@ -38,14 +38,14 @@ __global__ void lensCorrection(char *image, char *output, int width, int height,
 	output[elemID] = image[sourceY*width + sourceX];
 }
 
-// __global__ void lensCorrection(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
-// {
-// 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
-// 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-//     int elemID = y*width + x;                              // index within linear array
-//     
-// 	output[elemID] = image[elemID];
-// }
+__global__ void lensCorrection2(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int elemID = y*width + x;                              // index within linear array
+    
+	output[elemID] = image[elemID];
+}
 
 
 
@@ -59,8 +59,8 @@ void CamArray::run()
 {
 	int xSize = 320;
 	int ySize = 240;
-	int xSize2 = 160;
-	int ySize2 = 120;
+	int xSize2 = xSize/2;
+	int ySize2 = ySize/2;
 	
 	stopped = false;
 	
@@ -100,7 +100,7 @@ void CamArray::run()
 	}
 	
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
-	dim3 cudaGridSize(xSize/cudaBlockSize.x, ySize/cudaBlockSize.y);
+	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y);
 	
 	while(!stopped)
 	{
@@ -108,11 +108,59 @@ void CamArray::run()
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 1, 1);
+		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 12, 1);
 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
+		
+	
+// 		int width = xSize;
+// 		int height = ySize;
+// 		int width2 = xSize2;
+// 		int height2 = ySize2;
+// 		float strength = 1;
+// 		float zoom = 1;
+// 		
+// 		for (int y = 0; y < ySize2; y++)
+// 		{
+// 			for (int x = 0; x < xSize2; x++)
+// 			{
+// 				int myX = x;
+// 				int myY = y;
+// 				int elemID = myY*width2 + myX;                              // index within linear array
+// 
+// 				myX += (width-width2)/2;
+// 				myY += (height-height2)/2;
+// 				
+// 				int halfWidth = width / 2;
+// 				int halfHeight = height / 2;
+// 				float correctionRadius = sqrt(width * width + height * height) / strength;
+// 				int newX = myX - halfWidth;
+// 				int newY = myY - halfHeight;
+// 
+// 				float distance = sqrt(newX * newX + newY * newY);
+// 				int r = distance / correctionRadius;
+// 				
+// 				float theta;
+// 				if(r != 0)
+// 				{
+// 					theta = atan(r)/r;
+// 				} else {
+// 					theta = 1;
+// 				}
+// 				
+// 				int sourceX = halfWidth + theta * newX * zoom;
+// 				int sourceY = halfHeight + theta * newY * zoom;
+// 				
+// 				h_b[elemID] = h_a[sourceY*width + sourceX];
+// 				qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
+// 			}
+// 		}
+		
+
+		
+		
 		
 		for (int y = 0; y < ySize; y++)
 		{
