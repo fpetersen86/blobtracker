@@ -22,7 +22,7 @@ __global__ void lensCorrection(char *image, char *output, int width, int height,
 	int newY = y - halfHeight;
 
 	float distance = sqrtf(newX * newX + newY * newY);
-	int r = distance / correctionRadius;
+	float r = distance / correctionRadius;
 	
 	float theta;
 	if(r != 0)
@@ -59,8 +59,8 @@ void CamArray::run()
 {
 	int xSize = 320;
 	int ySize = 240;
-	int xSize2 = xSize/2;
-	int ySize2 = ySize/2;
+	int xSize2 = xSize;
+	int ySize2 = ySize;
 	
 	stopped = false;
 	
@@ -108,7 +108,7 @@ void CamArray::run()
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 12, 1);
+		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 5, 1.9);
 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
