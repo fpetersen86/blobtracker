@@ -191,6 +191,18 @@ void CamArray::stop()
 	stopped = true;
 }
 
+void CamArray::loadFile(QString f)
+{
+	QImage fileImage(f);
+
+	for (int y = 0; y < fileImage.height(); y++)
+	{
+		for (int x = 0; x < fileImage.width(); x++)
+		{
+			h_a[y*fileImage.width()+x] = qGray(fileImage.pixel(x,y));
+		}
+	}
+}
 
 CamArray::~CamArray()
 {
@@ -216,3 +228,8 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	qDebug("Memory deallocated successfully\n");
 }
+
+
+
+
+
