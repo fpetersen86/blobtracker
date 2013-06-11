@@ -16,8 +16,11 @@ public:
 	QImage i;
 	QFuture<void> future;
 	
-// protected:
-// 	virtual void paintEvent(QPaintEvent* e);
+private:
+	int winX, winY;
+	
+protected:
+	virtual void paintEvent(QPaintEvent* e);
 
 };
 

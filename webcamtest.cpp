@@ -7,24 +7,27 @@
 
 webcamtest::webcamtest()
 {
-	resize(320,240);
+	winX = 320;
+	winY = 480;
+	
+	resize(winX,winY);
 	ca = new CamArray(this);
-	i = QImage(320, 240, QImage::Format_RGB32);
-//future = QtConcurrent::run(ca->cams[0], &Camera::capture);
+	i = QImage(winX, winY, QImage::Format_RGB32);
+	ca->start();
 }
 
 webcamtest::~webcamtest()
 {
-	future.cancel();
-	ca->cams[0]->stop();
+	ca->stop();
+	ca->wait();
 	
 }
 
-// void webcamtest::paintEvent(QPaintEvent* e)
-// {
-// 	QPainter painter(this);
-// 	painter.drawImage(QRect(0,0,320,240),i);
-// }
+void webcamtest::paintEvent(QPaintEvent* e)
+{
+	QPainter painter(this);
+	painter.drawImage(QRect(0,0,winX,winY),i);
+}
 
 
 #include "webcamtest.moc"

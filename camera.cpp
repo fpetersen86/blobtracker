@@ -6,6 +6,7 @@
 #include <string.h> // memset
 #include <fcntl.h> // open
 #include <unistd.h> // close
+#include <errno.h>
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 const int num_buffers = 1;
@@ -22,27 +23,30 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 	fd = open(device, O_RDWR /* required */ | O_NONBLOCK, 0);
 	qDebug("Camera initialised: dev %s, id %d, fd %d", device, id, fd);
 	
-	// set up format and framerate
+	// set format
 	struct v4l2_format fmt;
 	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ioctl(fd, VIDIOC_G_FMT, &fmt);
 	
-	
-	
 	fmt.fmt.pix.width = xSize;
 	fmt.fmt.pix.height = ySize;
-	fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
+	//fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
 	ioctl(fd, VIDIOC_S_FMT, &fmt);
 	
+	// set framerate
 	v4l2_streamparm strp;
 	ioctl(fd, VIDIOC_G_PARM, &strp);
+	//qDebug("Time = %d/%d", strp.parm.capture.timeperframe.numerator, strp.parm.capture.timeperframe.denominator);
+	strp.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	strp.parm.capture.timeperframe.numerator = 1;
-	strp.parm.capture.timeperframe.denominator = 125;
-	ioctl(fd, VIDIOC_S_PARM, &strp);
+	strp.parm.capture.timeperframe.denominator = framerate;
+	//qDebug("Time = %d/%d", strp.parm.capture.timeperframe.numerator, strp.parm.capture.timeperframe.denominator);
+	//qDebug() << "ioctl " << ioctl(fd, VIDIOC_S_PARM, &strp) << " errno " << errno;
 	
 	
-//
-	
+
+// 	video_set_format(fd, xSize, ySize);
+// 	video_set_framerate(fd);
 	
 	struct v4l2_requestbuffers req;
 
@@ -87,6 +91,7 @@ Camera::~Camera()
 		munmap(buffers[i].start, buffers[i].length);
 	free(buffers);
 	close(fd);
+	qDebug("Camera stopped: id %d, fd %d", id, fd);
 }
 
 void Camera::run()
@@ -107,19 +112,17 @@ void Camera::run()
 			printf("VIDIOC_QBUF");
 	}
 	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	if (-1 == ioctl(fd, VIDIOC_STREAMON, &type))
+	if (-1 == ioctl(fd, VIDIOC_STREAMON, &type)){
 		printf("VIDIOC_STREAMON");
+	}
 	stopped = false;
-	qDebug() << "run id: " << id;
+// 	qDebug() << "run id: " << id;
 	loop();
 }
 
 void Camera::stop()
 {
 	stopped = true;
-	enum v4l2_buf_type type;
-	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	ioctl(fd, VIDIOC_STREAMOFF, &type);
 }
 
 void Camera::loop()
@@ -160,6 +163,9 @@ void Camera::loop()
 		else
 			fprintf(stderr, "select timeout\n");
 	}
+	enum v4l2_buf_type type;
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	ioctl(fd, VIDIOC_STREAMOFF, &type);
 }
 
 void Camera::doOurStuff(void* bufStart, __u32 size, int index)
@@ -172,7 +178,7 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 		for (int x = 0; x < xSize; x++)
 		{
 			val = buf[pos];
-// 			w->i.setPixel(x,y, qRgb(val, val, val));
+			//w->i.setPixel(x,y, qRgb(val, val, val));
 			myBuffer[offset + x] = val;
 			pos+=2;
 		}
@@ -180,6 +186,3 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 	}
 	sem->release(1);
 }
-
-
-

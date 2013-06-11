@@ -8,7 +8,7 @@
 class webcamtest;
 class Camera;
 
-class CamArray
+class CamArray : public QThread
 {
 
 public:
@@ -16,9 +16,17 @@ public:
     virtual ~CamArray();
 	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
+	webcamtest *w;
+	void run();
+	bool stopped;
+	void stop();
 	
 private:
 	QSemaphore *sem;
+	//host buffers
+	char* h_a, *h_b;
+	//device buffers
+	char* d_a, *d_b;
 };
 
 #endif // CAMARRAY_H

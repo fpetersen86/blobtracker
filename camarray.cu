@@ -1,25 +1,19 @@
 #include "camarray.h"
 #include <stdio.h>
+#include <cuda.h>
+#include "utility_environment.h"
 
 
 
 //GPU Kernel
-__global__ void findBlobs(char *image, float *output, int width, int height, float strength, float zoom)
+__global__ void lensCorrection(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
 {
-	int y = blockIdx.y * blockDim.y + threadIdx.y;         // coordinates within 2d array follow from block index and thread index within block
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
     int elemID = y*width + x;                              // index within linear array
-
-	// compute cells needed for update (neighbors + central element)
-	/*int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
-	float leftNeighb = input[elemID - borderFlag];
-	borderFlag = (x < (width - 1));
-	float rightNeighb = input[elemID + borderFlag];
-	borderFlag = -(y > 0);									// unary minus turns boolean value into boolean bitwise mask
-	float topNeighb = input[elemID - (borderFlag & width)];	
-	borderFlag = -(y < (height - 1));
-	float bottomNeighb = input[elemID + (borderFlag & width)];
-	float currElement = input[elemID];*/
+    
+    //x += (width-width2)/2;
+	//y += (height-height2)/2;
 	
 	int halfWidth = width / 2;
 	int halfHeight = height / 2;
@@ -28,28 +22,47 @@ __global__ void findBlobs(char *image, float *output, int width, int height, flo
 	int newY = y - halfHeight;
 
 	float distance = sqrtf(newX * newX + newY * newY);
-	float r = distance / correctionRadius;
+	int r = distance / correctionRadius;
 	
-	float theta = 1;
+	float theta;
 	if(r != 0)
 	{
-		theta = atan(r)/r;
+		theta = atanf(r)/r;
+	} else {
+		theta = 1;
 	}
 	
-	float sourceX = halfWidth + theta * newX * zoom;
-	float sourceY = halfHeight + theta * newY * zoom;
+	int sourceX = halfWidth + theta * newX * zoom;
+	int sourceY = halfHeight + theta * newY * zoom;
 	
-//	output[elemID] = image[sourceY*width + sourceX];
-	
-	//output[elemID] = currElement + mu * ( (leftNeighb-currElement) + (rightNeighb-currElement) + (bottomNeighb-currElement) + (topNeighb-currElement) );
+	output[elemID] = image[sourceY*width + sourceX];
 }
 
+// __global__ void lensCorrection(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
+// {
+// 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+// 	int y = blockIdx.y * blockDim.y + threadIdx.y;
+//     int elemID = y*width + x;                              // index within linear array
+//     
+// 	output[elemID] = image[elemID];
+// }
 
 
-CamArray::CamArray(webcamtest* p)
+
+CamArray::CamArray(webcamtest* p) : QThread(p)
+{
+	w = p; // All hail the mighty alphabet ;)
+	
+}
+
+void CamArray::run()
 {
 	int xSize = 320;
 	int ySize = 240;
+	int xSize2 = 160;
+	int ySize2 = 120;
+	
+	stopped = false;
 	
 	//initialise cams
 	QDir d("/dev/");
@@ -63,12 +76,15 @@ CamArray::CamArray(webcamtest* p)
 	
 	
 	int bufferSize = xSize * ySize * numCams * sizeof(char);
+	int bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
+	
 	//host buffers
-	char* h_a = (char *) malloc(bufferSize);
+	cudaMallocHost(&h_a, bufferSize);
+	cudaMallocHost(&h_b, bufferSize2);
 	
 	//device buffers
-	char* d_a;
 	cudaMalloc((void**) &d_a, bufferSize);
+	cudaMalloc((void**) &d_b, bufferSize2);
 	
 	
 	for(int i = 0; i < numCams; i++)
@@ -83,20 +99,72 @@ CamArray::CamArray(webcamtest* p)
 		cams[i]->start();
 	}
 	
+	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
+	dim3 cudaGridSize(xSize/cudaBlockSize.x, ySize/cudaBlockSize.y);
 	
-	while(true)
+	while(!stopped)
 	{
 		sem->acquire(numCams);
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
+		handleCUDAerror(__LINE__);
+		
+		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 1, 1);
+		handleCUDAerror(__LINE__);
+		
+		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
+		handleCUDAerror(__LINE__);
+		
+		for (int y = 0; y < ySize; y++)
+		{
+			for (int x = 0; x < xSize; x++)
+			{
+				int val = h_a[y*xSize+x];
+				w->i.setPixel(x,y, qRgb(val, val, val));
+			}
+		}
+		
+		for (int y = 0; y < ySize2; y++)
+		{
+			for (int x = 0; x < xSize2; x++)
+			{
+				int val = h_b[y*xSize2+x];
+				w->i.setPixel(x,y+ySize, qRgb(val, val, val));
+			}
+		}
+		w->update();
 		//qDebug("available: %d", sem->available());
 	}
 	
+	
+}
+
+void CamArray::stop()
+{
+	stopped = true;
 }
 
 
 CamArray::~CamArray()
 {
 	for (int i = 0; i < numCams; i++)
+	{
+		cams[i]->stop();
+	}
+	for (int i = 0; i < numCams; i++)
+	{
+		cams[i]->wait();
 		delete cams[i];
-
+	}
+	qDebug() << "CamArray stopped";
+	
+	// free memory buffers
+	cudaFree(d_a);
+	handleCUDAerror(__LINE__);
+	cudaFree(d_b);
+	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_a);
+	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_b);
+	handleCUDAerror(__LINE__);
+	qDebug("Memory deallocated successfully\n");
 }

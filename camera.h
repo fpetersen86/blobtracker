@@ -26,7 +26,6 @@ public:
 	void loop();
     void doOurStuff(void* bufStart, unsigned int size, int index);
 	struct buffer *buffers;
-	webcamtest *w;
 
 private:
 	QSemaphore *sem;
@@ -35,6 +34,8 @@ private:
 	void setParameters();
 	int fd;
 	bool stopped;
+	int video_set_format(int dev, unsigned int w, unsigned int h);
+	int video_set_framerate(int dev);
 };
 
 #endif // CAMERA_H
