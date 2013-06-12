@@ -108,7 +108,7 @@ void CamArray::run()
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 5, 1.9);
+		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 1, 1);
 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
@@ -191,9 +191,10 @@ void CamArray::stop()
 	stopped = true;
 }
 
-void CamArray::loadFile(QString f)
+
+void CamArray::loadFile(QString filenName)
 {
-	QImage fileImage(f);
+	QImage fileImage(filenName);
 
 	for (int y = 0; y < fileImage.height(); y++)
 	{

@@ -20,7 +20,7 @@ public:
 	void run();
 	bool stopped;
 	void stop();
-	void loadFile(QString f);
+	void loadFile(QString filenName);
 	
 private:
 	QSemaphore *sem;
