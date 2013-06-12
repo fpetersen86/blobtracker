@@ -3,6 +3,7 @@
 
 #include <QtGui/QMainWindow>
 #include "camarray.h"
+#include "ui_settings.h"
 
 class CamArray;
 
@@ -15,6 +16,7 @@ public:
 	CamArray * ca;
 	QImage i;
 	QFuture<void> future;
+	
 	
 private:
 	int winX, winY;

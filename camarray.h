@@ -10,7 +10,7 @@ class Camera;
 
 class CamArray : public QThread
 {
-
+Q_OBJECT
 public:
     CamArray(webcamtest* p);
     virtual ~CamArray();
@@ -28,6 +28,19 @@ private:
 	char* h_a, *h_b;
 	//device buffers
 	char* d_a, *d_b;
+	float lcStrength;
+	float lcZoom;
+	int xGrid;
+	int yGrid;
+	
+	
+public slots:
+	void setLcStrenght(float f) {lcStrength = f;};
+	void setLcZoom(float f) {lcZoom = f;};
+	void setXGrid(int i) {xGrid = i;};
+	void setYGrid(int i) {yGrid = i;};
+
+	
 };
 
 #endif // CAMARRAY_H

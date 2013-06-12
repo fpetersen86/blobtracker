@@ -52,7 +52,7 @@ __global__ void lensCorrection2(char *image, char *output, int width, int height
 CamArray::CamArray(webcamtest* p) : QThread(p)
 {
 	w = p; // All hail the mighty alphabet ;)
-	
+
 }
 
 void CamArray::run()
@@ -108,7 +108,7 @@ void CamArray::run()
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, 1, 1);
+		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
@@ -232,5 +232,6 @@ CamArray::~CamArray()
 
 
 
+#include "camarray.moc"
 
 
