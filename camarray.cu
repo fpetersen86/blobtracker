@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <cuda.h>
 #include "utility_environment.h"
+#include "webcamtest.h"
 
 
 
@@ -229,9 +230,4 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	qDebug("Memory deallocated successfully\n");
 }
-
-
-
-#include "camarray.moc"
-
 

@@ -5,9 +5,9 @@
 #include <Qt/QtGui>
 #include <Qt/QtCore>
 
-#include "webcamtest.h"
+//#include "webcamtest.h"
 
-class webcamtest;
+//class webcamtest;
 
 class Camera : public QThread
 {

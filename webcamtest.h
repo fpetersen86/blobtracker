@@ -5,7 +5,7 @@
 #include "camarray.h"
 #include "ui_settings.h"
 
-class CamArray;
+//class CamArray;
 
 class webcamtest : public QMainWindow
 {
@@ -16,13 +16,25 @@ public:
 	CamArray * ca;
 	QImage i;
 	QFuture<void> future;
+	Ui_settings *ui;
 	
 	
 private:
 	int winX, winY;
+	int xGrid;
+	int yGrid;
+	int imageWidth;
+	int imageHeight;
 	
 protected:
 	virtual void paintEvent(QPaintEvent* e);
+	
+public slots:
+	void setLcStrenght(float f) {ca->lcStrength = f;};
+	void setLcZoom(float f) {ca->lcZoom = f;};
+	void setXGrid(int i) {xGrid = i;};
+	void setYGrid(int i) {yGrid = i;};
+    void thi(int);
 
 };
 
