@@ -91,7 +91,7 @@
    <item row="4" column="0">
     <widget class="QLabel" name="label_5">
      <property name="text">
-      <string>&amp;Color</string>
+      <string>&amp;Color #</string>
      </property>
      <property name="buddy">
       <cstring>colEdit</cstring>
@@ -100,6 +100,12 @@
    </item>
    <item row="4" column="1">
     <widget class="QLineEdit" name="colEdit">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="inputMask">
       <string>HHHHHH; </string>
      </property>
