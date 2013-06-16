@@ -1,9 +1,11 @@
 #include "camarray.h"
 #include <stdio.h>
-#include <cuda.h>
 #include "utility_environment.h"
 #include "webcamtest.h"
 
+#ifndef NOCUDA
+#include <cuda.h>
+#endif
 
 
 //GPU Kernel
