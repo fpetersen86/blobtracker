@@ -1,4 +1,5 @@
 #include "webcamtest.h"
+#include "camarray.cu"
 
 #include <QtGui/QLabel>
 #include <QtGui/QMenu>
