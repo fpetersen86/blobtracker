@@ -17,6 +17,7 @@ public:
 	QImage i;
 	QFuture<void> future;
 	Ui_settings *ui;
+	QWidget *w;
 	
 	
 private:
@@ -25,6 +26,7 @@ private:
 	int yGrid;
 	int imageWidth;
 	int imageHeight;
+	QColor myColor;
 	
 protected:
 	virtual void paintEvent(QPaintEvent* e);
@@ -34,6 +36,7 @@ public slots:
 	void setLcZoom(double d) {ca->lcZoom = d;};
 	void setXGrid(int i) {xGrid = i;};
 	void setYGrid(int i) {yGrid = i;};
+	void setColor();
 
 };
 

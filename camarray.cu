@@ -1,11 +1,10 @@
 #include "camarray.h"
 #include <stdio.h>
-#include "utility_environment.h"
 #include "webcamtest.h"
 
 #ifndef NOCUDA
+#include "utility_environment.h"
 #include <cuda.h>
-#endif
 
 
 //GPU Kernel
@@ -50,6 +49,7 @@ __global__ void lensCorrection2(char *image, char *output, int width, int height
 	output[elemID] = image[elemID];
 }
 
+#endif
 
 
 CamArray::CamArray(webcamtest* p) : QThread(p)
@@ -82,12 +82,17 @@ void CamArray::run()
 	int bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
 	
 	//host buffers
+#ifndef NOCUDA
 	cudaMallocHost(&h_a, bufferSize);
 	cudaMallocHost(&h_b, bufferSize2);
 	
 	//device buffers
 	cudaMalloc((void**) &d_a, bufferSize);
 	cudaMalloc((void**) &d_b, bufferSize2);
+#else
+	h_a = reinterpret_cast<char*>(malloc(bufferSize));
+	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
+#endif
 	
 	
 	for(int i = 0; i < numCams; i++)
@@ -102,12 +107,15 @@ void CamArray::run()
 		cams[i]->start();
 	}
 	
+#ifndef NOCUDA
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y);
+#endif
 	
 	while(!stopped)
 	{
 		sem->acquire(numCams);
+#ifndef NOCUDA
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
@@ -117,52 +125,50 @@ void CamArray::run()
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
-	
-// 		int width = xSize;
-// 		int height = ySize;
-// 		int width2 = xSize2;
-// 		int height2 = ySize2;
-// 		float strength = 1;
-// 		float zoom = 1;
-// 		
-// 		for (int y = 0; y < ySize2; y++)
-// 		{
-// 			for (int x = 0; x < xSize2; x++)
-// 			{
-// 				int myX = x;
-// 				int myY = y;
-// 				int elemID = myY*width2 + myX;                              // index within linear array
-// 
-// 				myX += (width-width2)/2;
-// 				myY += (height-height2)/2;
-// 				
-// 				int halfWidth = width / 2;
-// 				int halfHeight = height / 2;
-// 				float correctionRadius = sqrt(width * width + height * height) / strength;
-// 				int newX = myX - halfWidth;
-// 				int newY = myY - halfHeight;
-// 
-// 				float distance = sqrt(newX * newX + newY * newY);
-// 				int r = distance / correctionRadius;
-// 				
-// 				float theta;
-// 				if(r != 0)
-// 				{
-// 					theta = atan(r)/r;
-// 				} else {
-// 					theta = 1;
-// 				}
-// 				
-// 				int sourceX = halfWidth + theta * newX * zoom;
-// 				int sourceY = halfHeight + theta * newY * zoom;
-// 				
-// 				h_b[elemID] = h_a[sourceY*width + sourceX];
-// 				qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
-// 			}
-// 		}
+#else
+		int width = xSize;
+		int height = ySize;
+		int width2 = xSize2;
+		int height2 = ySize2;
+		float strength = lcStrength;
+		float zoom = lcZoom;
 		
+		for (int y = 0; y < ySize2; y++)
+		{
+			for (int x = 0; x < xSize2; x++)
+			{
+				int myX = x;
+				int myY = y;
+				int elemID = myY*width2 + myX;                              // index within linear array
 
-		
+				myX += (width-width2)/2;
+				myY += (height-height2)/2;
+				
+				int halfWidth = width / 2;
+				int halfHeight = height / 2;
+				float correctionRadius = sqrt(width * width + height * height) / strength;
+				int newX = myX - halfWidth;
+				int newY = myY - halfHeight;
+
+				float distance = sqrt(newX * newX + newY * newY);
+				float r = distance / correctionRadius;
+				
+				float theta;
+				if(r != 0)
+				{
+					theta = atan(r)/r;
+				} else {
+					theta = 1;
+				}
+				
+				int sourceX = halfWidth + theta * newX * zoom;
+				int sourceY = halfHeight + theta * newY * zoom;
+				
+				h_b[elemID] = h_a[sourceY*width + sourceX];
+				//qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
+			}
+		}
+#endif
 		
 		
 		for (int y = 0; y < ySize; y++)
@@ -222,6 +228,7 @@ CamArray::~CamArray()
 	qDebug() << "CamArray stopped";
 	
 	// free memory buffers
+#ifndef NOCUDA
 	cudaFree(d_a);
 	handleCUDAerror(__LINE__);
 	cudaFree(d_b);
@@ -230,6 +237,10 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_b);
 	handleCUDAerror(__LINE__);
+#else
+	free(h_a);
+	free(h_b);
+#endif
 	qDebug("Memory deallocated successfully\n");
 }
 
