@@ -30,11 +30,10 @@ protected:
 	virtual void paintEvent(QPaintEvent* e);
 	
 public slots:
-	void setLcStrenght(float f) {ca->lcStrength = f;};
-	void setLcZoom(float f) {ca->lcZoom = f;};
+	void setLcStrenght(double d) {ca->lcStrength = d;};
+	void setLcZoom(double d) {ca->lcZoom = d;};
 	void setXGrid(int i) {xGrid = i;};
 	void setYGrid(int i) {yGrid = i;};
-    void thi(int);
 
 };
 

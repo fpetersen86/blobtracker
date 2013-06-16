@@ -29,15 +29,9 @@ private:
 	char* h_a, *h_b;
 	//device buffers
 	char* d_a, *d_b;
+	
 	float lcStrength;
 	float lcZoom;
-	
-	
-// public slots:
-// 	void setLcStrenght(float f) {lcStrength = f;};
-// 	void setLcZoom(float f) {lcZoom = f;};
-// 	void setXGrid(int i) {xGrid = i;};
-// 	void setYGrid(int i) {yGrid = i;};
 
 	
 };
