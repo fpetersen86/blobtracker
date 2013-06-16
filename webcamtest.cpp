@@ -1,6 +1,7 @@
 #include "webcamtest.h"
+#ifdef NOCUDA // W.T.F.???????!!!!! neccessary for proper compilation
 #include "camarray.cu"
-
+#endif
 #include <QtGui/QLabel>
 #include <QtGui/QMenu>
 #include <QtGui/QMenuBar>
@@ -14,6 +15,7 @@ webcamtest::webcamtest()
 	imageHeight= 240;
 	xGrid = 0;
 	yGrid = 0;
+	myColor = QColor("#62b5ff");
 	
 	resize(winX,winY);
 	ca = new CamArray(this);
@@ -37,7 +39,9 @@ webcamtest::webcamtest()
 	ui->lcStrengthSpinBox->setValue(5.0);
 	ui->lcZoomSpinBox->setValue(2.0);
 	ui->gridXSpinBox->setValue(0);
+	ui->gridXSpinBox->setMaximum(imageWidth/2);
 	ui->gridYSpinBox->setValue(0);
+	ui->gridYSpinBox->setMaximum(imageHeight/2);
 	ui->colEdit->setText("62b5ff");
 	qDebug() << xGrid << "Q" << imageWidth;
 	//setAttribute(Qt::WA_DeleteOnClose, true);
