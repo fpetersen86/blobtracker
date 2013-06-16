@@ -15,8 +15,6 @@
 #include <iostream>
 #include <algorithm>
 
-#include "cuda_includes.h"
-
 using namespace std;
 
 #ifdef _WIN32
