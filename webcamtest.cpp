@@ -6,6 +6,7 @@
 #include <QtGui/QMenu>
 #include <QtGui/QMenuBar>
 #include <QtGui/QAction>
+#include "global.h"
 
 webcamtest::webcamtest()
 {
@@ -17,9 +18,8 @@ webcamtest::webcamtest()
 	yGrid = 0;
 	myColor = QColor("#62b5ff");
 	
-	resize(winX,winY);
+	resizeImage(1);
 	ca = new CamArray(this);
-	i = QImage(winX, winY, QImage::Format_RGB32);
 	ca->start();
 	QWidget *w = new QWidget(NULL);
 	w->setGeometry(imageWidth, 0, winX-imageWidth, winY);
@@ -53,6 +53,15 @@ webcamtest::webcamtest()
 	
 }
 
+void webcamtest::resizeImage(int num)
+{
+	int x = xSize * num;
+	int y = ySize * 2;
+	i = QImage(x, y, QImage::Format_RGB32);
+	resize(x,y);
+}
+
+
 webcamtest::~webcamtest()
 {
 	//w->close();
@@ -63,9 +72,9 @@ webcamtest::~webcamtest()
 void webcamtest::paintEvent(QPaintEvent* e)
 {
 	QMainWindow::paintEvent(e);
- 	QPainter painter(this);
+	QPainter painter(this);
 	
- 	painter.drawImage(QRect(0,0,winX,winY),i);
+	painter.drawImage(QRect(0,0,winX,winY),i);
 	
 	//QColor myColor(98,181,255);
 	QPen myPen;
@@ -83,7 +92,6 @@ void webcamtest::paintEvent(QPaintEvent* e)
 		gridWidht = imageWidth / (xGrid+1);
 		for (int x = 0; x < imageWidth; x+= gridWidht)
 			painter.drawLine(x, winY/2, x, winY);
-		qDebug()<< gridWidht;
 	}
 		
 	if (yGrid) 

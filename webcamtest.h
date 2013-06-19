@@ -18,6 +18,7 @@ public:
 	QFuture<void> future;
 	Ui_settings *ui;
 	QWidget *w;
+	void resizeImage(int num);
 	
 	
 private:

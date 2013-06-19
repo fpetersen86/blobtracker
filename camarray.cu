@@ -56,6 +56,27 @@ __global__ void lensCorrection2(char *image, char *output, int width, int height
 CamArray::CamArray(webcamtest* p) : QThread(p)
 {
 	w = p; // All hail the mighty alphabet ;)
+	//initialise cams
+	QDir d("/dev/");
+	d.setFilter(QDir::System);
+	d.setNameFilters(QStringList("*video*"));
+	QStringList camList = d.entryList();
+	numCams = camList.size();
+	p->resizeImage(numCams);
+	QString c;
+	sem = new QSemaphore(numCams);
+	sem->acquire(numCams);
+	
+	bufferSize = xSize * ySize * numCams * sizeof(char);
+	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
+	
+	initBuffers();
+	
+	for(int i = 0; i < numCams; i++)
+	{
+		c = camList.at(i);
+		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
+	}
 
 }
 
@@ -80,27 +101,6 @@ void CamArray::initBuffers() {
 void CamArray::run()
 {
 	stopped = false;
-	
-	//initialise cams
-	QDir d("/dev/");
-	d.setFilter(QDir::System);
-	d.setNameFilters(QStringList("*video*"));
-	QStringList camList = d.entryList();
-	numCams = camList.size();
-	QString c;
-	sem = new QSemaphore(numCams);
-	sem->acquire(numCams);
-	
-	bufferSize = xSize * ySize * numCams * sizeof(char);
-	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
-	
-	initBuffers();
-	
-	for(int i = 0; i < numCams; i++)
-	{
-		c = camList.at(i);
-		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
-	}
 	
 	//start capturing
 	for(int i = 0; i < numCams; i++)
@@ -191,22 +191,29 @@ void CamArray::mainloop()
 
 void CamArray::output()
 {
-	for (int y = 0; y < ySize; y++)
+	int offset = 0, xOffset = 0, xOffset2 = 0;
+	for( int n = 0; n < numCams; n++)
 	{
-		for (int x = 0; x < xSize; x++)
+		for (int y = 0; y < ySize; y++)
 		{
-			int val = h_a[y*xSize+x];
-			w->i.setPixel(x,y, qRgb(val, val, val));
+			for (int x = 0; x < xSize; x++)
+			{
+				int val = h_a[offset+y*xSize+x];
+				w->i.setPixel(xOffset+x,y, qRgb(val, val, val));
+			}
 		}
-	}
-	
-	for (int y = 0; y < ySize2; y++)
-	{
-		for (int x = 0; x < xSize2; x++)
+
+		for (int y = 0; y < ySize2; y++)
 		{
-			int val = h_b[y*xSize2+x];
-			w->i.setPixel(x,y+ySize, qRgb(val, val, val));
+			for (int x = 0; x < xSize2; x++)
+			{
+				int val = h_b[offset+y*xSize2+x];
+				w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
+			}
 		}
+		xOffset  += xSize;
+		xOffset2 += xSize2;
+		offset   += xSize*ySize;
 	}
 	w->update();
 	//qDebug("available: %d", sem->available());
