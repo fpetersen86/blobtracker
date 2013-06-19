@@ -18,11 +18,9 @@ webcamtest::webcamtest()
 	yGrid = 0;
 	myColor = QColor("#62b5ff");
 	
-	resizeImage(1);
 	ca = new CamArray(this);
 	ca->start();
 	QWidget *w = new QWidget(NULL);
-	w->setGeometry(imageWidth, 0, winX-imageWidth, winY);
 	ui=new Ui_settings();
 	ui->setupUi(w);
 	
@@ -74,7 +72,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 	QMainWindow::paintEvent(e);
 	QPainter painter(this);
 	
-	painter.drawImage(QRect(0,0,winX,winY),i);
+	painter.drawImage(i.rect(),i);
 	
 	//QColor myColor(98,181,255);
 	QPen myPen;
