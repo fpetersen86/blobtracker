@@ -1,8 +1,9 @@
 #include "camarray.h"
 #include <stdio.h>
 #include "webcamtest.h"
+#include "global.h"
 
-#ifndef NOCUDA
+#ifdef CUDA
 #include "utility_environment.h"
 #include <cuda.h>
 
@@ -58,13 +59,26 @@ CamArray::CamArray(webcamtest* p) : QThread(p)
 
 }
 
+#ifdef CUDA
+void CamArray::initPlatform() {
+	//host buffers
+	cudaMallocHost(&h_a, bufferSize);
+	cudaMallocHost(&h_b, bufferSize2);
+	
+	//device buffers
+	cudaMalloc((void**) &d_a, bufferSize);
+	cudaMalloc((void**) &d_b, bufferSize2);
+}
+#else //NOCUDA
+void CamArray::initPlatform() {
+	h_a = reinterpret_cast<char*>(malloc(bufferSize));
+	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
+}
+#endif
+
+
 void CamArray::run()
 {
-	int xSize = 320;
-	int ySize = 240;
-	int xSize2 = xSize;
-	int ySize2 = ySize;
-	
 	stopped = false;
 	
 	//initialise cams
@@ -77,23 +91,10 @@ void CamArray::run()
 	QSemaphore *sem = new QSemaphore(numCams);
 	sem->acquire(numCams);
 	
+	bufferSize = xSize * ySize * numCams * sizeof(char);
+	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
 	
-	int bufferSize = xSize * ySize * numCams * sizeof(char);
-	int bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
-	
-	//host buffers
-#ifndef NOCUDA
-	cudaMallocHost(&h_a, bufferSize);
-	cudaMallocHost(&h_b, bufferSize2);
-	
-	//device buffers
-	cudaMalloc((void**) &d_a, bufferSize);
-	cudaMalloc((void**) &d_b, bufferSize2);
-#else
-	h_a = reinterpret_cast<char*>(malloc(bufferSize));
-	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
-#endif
-	
+	initPlatform();
 	
 	for(int i = 0; i < numCams; i++)
 	{
@@ -107,15 +108,18 @@ void CamArray::run()
 		cams[i]->start();
 	}
 	
-#ifndef NOCUDA
+	mainloop();
+}
+
+#ifdef CUDA
+void CamArray::mainloopCUDA()
+{
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y);
-#endif
 	
 	while(!stopped)
 	{
 		sem->acquire(numCams);
-#ifndef NOCUDA
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
@@ -125,7 +129,19 @@ void CamArray::run()
 		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
-#else
+		output();
+	}
+}
+
+#endif
+
+#ifdef NOCUDA
+void CamArray::mainloopCPU()
+{
+	while(!stopped)
+	{
+		sem->acquire(numCams);
+		
 		int width = xSize;
 		int height = ySize;
 		int width2 = xSize2;
@@ -168,31 +184,32 @@ void CamArray::run()
 				//qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
 			}
 		}
+		output();
+	}
+}
 #endif
-		
-		
-		for (int y = 0; y < ySize; y++)
+
+void CamArray::output()
+{
+	for (int y = 0; y < ySize; y++)
+	{
+		for (int x = 0; x < xSize; x++)
 		{
-			for (int x = 0; x < xSize; x++)
-			{
-				int val = h_a[y*xSize+x];
-				w->i.setPixel(x,y, qRgb(val, val, val));
-			}
+			int val = h_a[y*xSize+x];
+			w->i.setPixel(x,y, qRgb(val, val, val));
 		}
-		
-		for (int y = 0; y < ySize2; y++)
-		{
-			for (int x = 0; x < xSize2; x++)
-			{
-				int val = h_b[y*xSize2+x];
-				w->i.setPixel(x,y+ySize, qRgb(val, val, val));
-			}
-		}
-		w->update();
-		//qDebug("available: %d", sem->available());
 	}
 	
-	
+	for (int y = 0; y < ySize2; y++)
+	{
+		for (int x = 0; x < xSize2; x++)
+		{
+			int val = h_b[y*xSize2+x];
+			w->i.setPixel(x,y+ySize, qRgb(val, val, val));
+		}
+	}
+	w->update();
+	//qDebug("available: %d", sem->available());
 }
 
 void CamArray::stop()
