@@ -60,7 +60,7 @@ CamArray::CamArray(webcamtest* p) : QThread(p)
 }
 
 #ifdef CUDA
-void CamArray::initPlatform() {
+void CamArray::initBuffers() {
 	//host buffers
 	cudaMallocHost(&h_a, bufferSize);
 	cudaMallocHost(&h_b, bufferSize2);
@@ -70,7 +70,7 @@ void CamArray::initPlatform() {
 	cudaMalloc((void**) &d_b, bufferSize2);
 }
 #else //NOCUDA
-void CamArray::initPlatform() {
+void CamArray::initBuffers() {
 	h_a = reinterpret_cast<char*>(malloc(bufferSize));
 	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
 }
@@ -94,7 +94,7 @@ void CamArray::run()
 	bufferSize = xSize * ySize * numCams * sizeof(char);
 	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
 	
-	initPlatform();
+	initBuffers();
 	
 	for(int i = 0; i < numCams; i++)
 	{
@@ -112,7 +112,7 @@ void CamArray::run()
 }
 
 #ifdef CUDA
-void CamArray::mainloopCUDA()
+void CamArray::mainloop()
 {
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y);
@@ -136,7 +136,7 @@ void CamArray::mainloopCUDA()
 #endif
 
 #ifdef NOCUDA
-void CamArray::mainloopCPU()
+void CamArray::mainloop()
 {
 	while(!stopped)
 	{

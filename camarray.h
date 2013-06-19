@@ -32,10 +32,10 @@ private:
 	
 	float lcStrength;
 	float lcZoom;
-	void initCPU();
-	void initCUDA();
-	void mainloopCPU();
-	void mainloopCUDA();
+	void initBuffers();
+	//void initCUDA();
+	void mainloop();
+	//void mainloopCUDA();
 	void output();
 	
 	int bufferSize;
