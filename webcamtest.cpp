@@ -64,7 +64,6 @@ void webcamtest::paintEvent(QPaintEvent* e)
 {
 	QMainWindow::paintEvent(e);
  	QPainter painter(this);
-	qDebug() << "painting";
 	
  	painter.drawImage(QRect(0,0,winX,winY),i);
 	
@@ -93,8 +92,6 @@ void webcamtest::paintEvent(QPaintEvent* e)
 		for (int y = winY/2; y < winY; y+= gridHeight)
 			painter.drawLine(0, y, imageWidth, y);
 	}
-	
-	qDebug() << "not painting";
 }
 
 void webcamtest::setColor()

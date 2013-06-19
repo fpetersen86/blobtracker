@@ -88,7 +88,7 @@ void CamArray::run()
 	QStringList camList = d.entryList();
 	numCams = camList.size();
 	QString c;
-	QSemaphore *sem = new QSemaphore(numCams);
+	sem = new QSemaphore(numCams);
 	sem->acquire(numCams);
 	
 	bufferSize = xSize * ySize * numCams * sizeof(char);
