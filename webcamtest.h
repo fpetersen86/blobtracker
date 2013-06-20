@@ -28,6 +28,7 @@ private:
 	int imageWidth;
 	int imageHeight;
 	QColor myColor;
+	bool imgTestMode;
 	
 protected:
 	virtual void paintEvent(QPaintEvent* e);
@@ -38,6 +39,7 @@ public slots:
 	void setXGrid(int i) {xGrid = i;};
 	void setYGrid(int i) {yGrid = i;};
 	void setColor();
+	void setThreshold(int i) {ca->threshold = i;};
 
 };
 

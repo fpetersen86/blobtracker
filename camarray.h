@@ -13,15 +13,16 @@ class CamArray : public QThread
 friend class webcamtest;
 
 public:
-    CamArray(webcamtest* p);
+    CamArray(webcamtest* p, int testimages = 0);
     virtual ~CamArray();
 	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
+	bool imgTest;
 	webcamtest *w;
 	void run();
 	bool stopped;
 	void stop();
-	void loadFile(QString filenName);
+	void loadFiles();
 	
 private:
 	QSemaphore *sem;
@@ -37,6 +38,7 @@ private:
 	void mainloop();
 	//void mainloopCUDA();
 	void output();
+	int threshold;
 	
 	int bufferSize;
 	int bufferSize2;

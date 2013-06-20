@@ -10,6 +10,7 @@
 
 webcamtest::webcamtest()
 {
+	imgTestMode = QApplication::argc() > 1;
 	winX = 720;
 	winY = 480;
 	imageWidth = 320;
@@ -18,7 +19,7 @@ webcamtest::webcamtest()
 	yGrid = 0;
 	myColor = QColor("#62b5ff");
 	
-	ca = new CamArray(this);
+	ca = new CamArray(this, QApplication::arguments().size() - 1);
 	ca->start();
 	QWidget *w = new QWidget(NULL);
 	ui=new Ui_settings();
@@ -34,6 +35,26 @@ webcamtest::webcamtest()
 			this, SLOT(setYGrid(int)));
 	connect(ui->colEdit, SIGNAL(editingFinished()),
 			this, SLOT(setColor()));
+	connect(ui->threshSlider, SIGNAL(valueChanged(int)),
+			this, SLOT(setThreshold(int)));
+	if(imgTestMode) 
+	{
+		connect(ui->lcStrengthSpinBox, SIGNAL(valueChanged(double)),
+				this, SLOT(update()));
+		connect(ui->lcZoomSpinBox, SIGNAL(valueChanged(double)),
+				this, SLOT(update()));
+		connect(ui->gridXSpinBox, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		connect(ui->gridYSpinBox, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		connect(ui->colEdit, SIGNAL(editingFinished()),
+				this, SLOT(update()));
+		connect(ui->threshSlider, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		resizeImage(QApplication::argc() - 1);
+		ca->loadFiles();
+	}
+	
 	ui->lcStrengthSpinBox->setValue(5.0);
 	ui->lcZoomSpinBox->setValue(2.0);
 	ui->gridXSpinBox->setValue(0);
@@ -54,7 +75,7 @@ webcamtest::webcamtest()
 void webcamtest::resizeImage(int num)
 {
 	int x = xSize * num;
-	int y = ySize * 2;
+	int y = ySize * imgRows;
 	i = QImage(x, y, QImage::Format_RGB32);
 	resize(x,y);
 }
@@ -88,7 +109,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 	if (xGrid)
 	{
 		gridWidht = imageWidth / (xGrid+1);
-		for (int x = 0; x < imageWidth; x+= gridWidht)
+		for (int x = 0; x < imageWidth * ca->numCams; x+= gridWidht)
 			painter.drawLine(x, winY/2, x, winY);
 	}
 		
@@ -96,7 +117,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 	{
 		gridHeight = imageHeight / (yGrid+1);
 		for (int y = winY/2; y < winY; y+= gridHeight)
-			painter.drawLine(0, y, imageWidth, y);
+			painter.drawLine(0, y, imageWidth*ca->numCams, y);
 	}
 }
 

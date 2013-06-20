@@ -13,7 +13,7 @@ __global__ void lensCorrection(char *image, char *output, int width, int height,
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width2 + x;                              // index within linear array
+    int elemID = y*width2 + x + blockIdx.z*blockDim.x*blockDim.y;                             // index within linear array
     
     x += (width-width2)/2;
 	y += (height-height2)/2;
@@ -53,15 +53,25 @@ __global__ void lensCorrection2(char *image, char *output, int width, int height
 #endif
 
 
-CamArray::CamArray(webcamtest* p) : QThread(p)
+CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {
 	w = p; // All hail the mighty alphabet ;)
 	//initialise cams
+	QStringList camList;
 	QDir d("/dev/");
-	d.setFilter(QDir::System);
-	d.setNameFilters(QStringList("*video*"));
-	QStringList camList = d.entryList();
-	numCams = camList.size();
+	if (!testimages)
+	{
+		imgTest = false;
+		d.setFilter(QDir::System);
+		d.setNameFilters(QStringList("*video*"));
+		camList = d.entryList();
+		numCams = camList.size();
+	}
+	else
+	{
+		imgTest = true;
+		numCams = testimages;
+	}
 	p->resizeImage(numCams);
 	QString c;
 	sem = new QSemaphore(numCams);
@@ -69,15 +79,16 @@ CamArray::CamArray(webcamtest* p) : QThread(p)
 	
 	bufferSize = xSize * ySize * numCams * sizeof(char);
 	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
+	threshold = 20;
 	
 	initBuffers();
 	
-	for(int i = 0; i < numCams; i++)
-	{
-		c = camList.at(i);
-		cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
-	}
-
+	if (!imgTest)
+		for(int i = 0; i < numCams; i++)
+		{
+			c = camList.at(i);
+			cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
+		}
 }
 
 #ifdef CUDA
@@ -103,10 +114,11 @@ void CamArray::run()
 	stopped = false;
 	
 	//start capturing
-	for(int i = 0; i < numCams; i++)
-	{
-		cams[i]->start();
-	}
+	if (!imgTest)
+		for(int i = 0; i < numCams; i++)
+		{
+			cams[i]->start();
+		}
 	
 	mainloop();
 }
@@ -115,11 +127,14 @@ void CamArray::run()
 void CamArray::mainloop()
 {
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
-	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y);
+	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y, numCams);
 	
 	while(!stopped)
 	{
-		sem->acquire(numCams);
+		if (!imgTest)
+			sem->acquire(numCams);
+		else 
+			msleep(8);
 		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
@@ -140,7 +155,10 @@ void CamArray::mainloop()
 {
 	while(!stopped)
 	{
-		sem->acquire(numCams);
+		if (!imgTest)
+			sem->acquire(numCams);
+		else 
+			msleep(8);
 		
 		int width = xSize;
 		int height = ySize;
@@ -149,45 +167,51 @@ void CamArray::mainloop()
 		float strength = lcStrength;
 		float zoom = lcZoom;
 		
-		for (int y = 0; y < ySize2; y++)
+		int offset = 0;
+		for( int n = 0; n < numCams; n++)
 		{
-			for (int x = 0; x < xSize2; x++)
+			for (int y = 0; y < ySize2; y++)
 			{
-				int myX = x;
-				int myY = y;
-				int elemID = myY*width2 + myX;                              // index within linear array
-
-				myX += (width-width2)/2;
-				myY += (height-height2)/2;
-				
-				int halfWidth = width / 2;
-				int halfHeight = height / 2;
-				float correctionRadius = sqrt(width * width + height * height) / strength;
-				int newX = myX - halfWidth;
-				int newY = myY - halfHeight;
-
-				float distance = sqrt(newX * newX + newY * newY);
-				float r = distance / correctionRadius;
-				
-				float theta;
-				if(r != 0)
+				for (int x = 0; x < xSize2; x++)
 				{
-					theta = atan(r)/r;
-				} else {
-					theta = 1;
+					int myX = x;
+					int myY = y;
+					int elemID = myY*width2 + myX;                              // index within linear array
+
+					myX += (width-width2)/2;
+					myY += (height-height2)/2;
+					
+					int halfWidth = width / 2;
+					int halfHeight = height / 2;
+					float correctionRadius = sqrt(width * width + height * height) / strength;
+					int newX = myX - halfWidth;
+					int newY = myY - halfHeight;
+
+					float distance = sqrt(newX * newX + newY * newY);
+					float r = distance / correctionRadius;
+					
+					float theta;
+					if(r != 0)
+					{
+						theta = atan(r)/r;
+					} else {
+						theta = 1;
+					}
+					
+					int sourceX = halfWidth + theta * newX * zoom;
+					int sourceY = halfHeight + theta * newY * zoom;
+					
+					h_b[offset + elemID] = h_a[offset + sourceY*width + sourceX];
+					//qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
 				}
-				
-				int sourceX = halfWidth + theta * newX * zoom;
-				int sourceY = halfHeight + theta * newY * zoom;
-				
-				h_b[elemID] = h_a[sourceY*width + sourceX];
-				//qDebug("elemID: %d   X: %d myX: %d sourceX: %d   Y: %d myY: %d sourceY: %d", elemID, x, myX, sourceX, y, myY, sourceY);
 			}
+			offset   += xSize*ySize;
 		}
 		output();
 	}
 }
 #endif
+
 
 void CamArray::output()
 {
@@ -211,6 +235,14 @@ void CamArray::output()
 				w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
 			}
 		}
+		for (int y = 0; y < ySize2; y++)
+		{
+			for (int x = 0; x < xSize2; x++)
+			{
+				int val = h_b[offset+y*xSize2+x] <= threshold ? 255 : 0;
+				w->i.setPixel(xOffset2+x,y+ySize+ySize, qRgb(val, val, val));
+			}
+		}
 		xOffset  += xSize;
 		xOffset2 += xSize2;
 		offset   += xSize*ySize;
@@ -225,17 +257,25 @@ void CamArray::stop()
 }
 
 
-void CamArray::loadFile(QString filenName)
+void CamArray::loadFiles()
 {
-	QImage fileImage(filenName);
-
-	for (int y = 0; y < fileImage.height(); y++)
+	QImage fileImage;
+	int offset = 0;
+	for (int j = 1; j < QApplication::arguments().size(); j++)
 	{
-		for (int x = 0; x < fileImage.width(); x++)
+		fileImage = QImage(QApplication::arguments().at(j)).scaled(xSize, ySize,
+												Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		qDebug() << QApplication::arguments().at(j) << " xsize " << fileImage.width() ;
+		for (int y = 0; y < ySize; y++)
 		{
-			h_a[y*fileImage.width()+x] = qGray(fileImage.pixel(x,y));
+			for (int x = 0; x < xSize; x++)
+			{
+				h_a[offset+y*xSize+x] = qGray(fileImage.pixel(x,y));
+			}
 		}
+		offset += (ySize * xSize);
 	}
+	w->update();
 }
 
 CamArray::~CamArray()
