@@ -1,5 +1,5 @@
 #include "webcamtest.h"
-#include "camarray.cu"
+//#include "camarray.cu"
 
 #include <QtGui/QLabel>
 #include <QtGui/QMenu>
@@ -8,7 +8,7 @@
 
 webcamtest::webcamtest()
 {
-	winX = 720;
+	winX = 640;
 	winY = 480;
 	imageWidth = 320;
 	imageHeight= 240;
@@ -60,7 +60,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 {
 	QMainWindow::paintEvent(e);
  	QPainter painter(this);
-	qDebug() << "painting";
+	//qDebug() << "painting";
 	
  	painter.drawImage(QRect(0,0,winX,winY),i);
 	
@@ -90,7 +90,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 			painter.drawLine(0, y, imageWidth, y);
 	}
 	
-	qDebug() << "not painting";
+	//qDebug() << "not painting";
 }
 
 void webcamtest::setColor()

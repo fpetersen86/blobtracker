@@ -17,7 +17,7 @@ set(blobtracker_cuda_SRCS camarray.cu)
 qt4_automoc(${blobtracker_SRCS} ${blobtracker_cuda_SRCS})
 
 if (CUDA_FOUND)
-	set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -gencode arch=compute_10,code=sm_10)
+	set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -gencode arch=compute_30,code=sm_30)
 	cuda_add_executable(blobtracker ${blobtracker_SRCS} ${blobtracker_cuda_SRCS} ${blobtracker_UIS_H})
 	target_link_libraries(blobtracker ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY})
 else()
