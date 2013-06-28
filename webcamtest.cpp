@@ -1,26 +1,27 @@
 #include "webcamtest.h"
-//#include "camarray.cu"
-
+#ifdef NOCUDA // W.T.F.???????!!!!! neccessary for proper compilation
+#include "camarray.cu"
+#endif
 #include <QtGui/QLabel>
 #include <QtGui/QMenu>
 #include <QtGui/QMenuBar>
 #include <QtGui/QAction>
+#include "global.h"
 
 webcamtest::webcamtest()
 {
-	winX = 640;
+	imgTestMode = QApplication::argc() > 1;
+	winX = 720;
 	winY = 480;
 	imageWidth = 320;
 	imageHeight= 240;
 	xGrid = 0;
 	yGrid = 0;
+	myColor = QColor("#62b5ff");
 	
-	resize(winX,winY);
-	ca = new CamArray(this);
-	i = QImage(winX, winY, QImage::Format_RGB32);
+	ca = new CamArray(this, QApplication::arguments().size() - 1);
 	ca->start();
 	QWidget *w = new QWidget(NULL);
-	w->setGeometry(imageWidth, 0, winX-imageWidth, winY);
 	ui=new Ui_settings();
 	ui->setupUi(w);
 	
@@ -34,10 +35,32 @@ webcamtest::webcamtest()
 			this, SLOT(setYGrid(int)));
 	connect(ui->colEdit, SIGNAL(editingFinished()),
 			this, SLOT(setColor()));
+	connect(ui->threshSlider, SIGNAL(valueChanged(int)),
+			this, SLOT(setThreshold(int)));
+	if(imgTestMode) 
+	{
+		connect(ui->lcStrengthSpinBox, SIGNAL(valueChanged(double)),
+				this, SLOT(update()));
+		connect(ui->lcZoomSpinBox, SIGNAL(valueChanged(double)),
+				this, SLOT(update()));
+		connect(ui->gridXSpinBox, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		connect(ui->gridYSpinBox, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		connect(ui->colEdit, SIGNAL(editingFinished()),
+				this, SLOT(update()));
+		connect(ui->threshSlider, SIGNAL(valueChanged(int)),
+				this, SLOT(update()));
+		resizeImage(QApplication::argc() - 1);
+		ca->loadFiles();
+	}
+	
 	ui->lcStrengthSpinBox->setValue(5.0);
 	ui->lcZoomSpinBox->setValue(2.0);
 	ui->gridXSpinBox->setValue(0);
+	ui->gridXSpinBox->setMaximum(imageWidth/2);
 	ui->gridYSpinBox->setValue(0);
+	ui->gridYSpinBox->setMaximum(imageHeight/2);
 	ui->colEdit->setText("62b5ff");
 	qDebug() << xGrid << "Q" << imageWidth;
 	//setAttribute(Qt::WA_DeleteOnClose, true);
@@ -49,6 +72,15 @@ webcamtest::webcamtest()
 	
 }
 
+void webcamtest::resizeImage(int num)
+{
+	int x = xSize * num;
+	int y = ySize * imgRows;
+	i = QImage(x, y, QImage::Format_RGB32);
+	resize(x,y);
+}
+
+
 webcamtest::~webcamtest()
 {
 	//w->close();
@@ -59,10 +91,9 @@ webcamtest::~webcamtest()
 void webcamtest::paintEvent(QPaintEvent* e)
 {
 	QMainWindow::paintEvent(e);
- 	QPainter painter(this);
-	//qDebug() << "painting";
+	QPainter painter(this);
 	
- 	painter.drawImage(QRect(0,0,winX,winY),i);
+	painter.drawImage(i.rect(),i);
 	
 	//QColor myColor(98,181,255);
 	QPen myPen;
@@ -78,19 +109,16 @@ void webcamtest::paintEvent(QPaintEvent* e)
 	if (xGrid)
 	{
 		gridWidht = imageWidth / (xGrid+1);
-		for (int x = 0; x < imageWidth; x+= gridWidht)
+		for (int x = 0; x < imageWidth * ca->numCams; x+= gridWidht)
 			painter.drawLine(x, winY/2, x, winY);
-		qDebug()<< gridWidht;
 	}
 		
 	if (yGrid) 
 	{
 		gridHeight = imageHeight / (yGrid+1);
 		for (int y = winY/2; y < winY; y+= gridHeight)
-			painter.drawLine(0, y, imageWidth, y);
+			painter.drawLine(0, y, imageWidth*ca->numCams, y);
 	}
-	
-	//qDebug() << "not painting";
 }
 
 void webcamtest::setColor()
