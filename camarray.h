@@ -8,6 +8,13 @@
 class webcamtest;
 class Camera;
 
+struct camSettings
+{
+	float angle;
+	int xOffset;
+	int yOffset;
+};
+
 class CamArray : public QThread
 {
 friend class webcamtest;
@@ -27,9 +34,11 @@ public:
 private:
 	QSemaphore *sem;
 	//host buffers
-	char *h_a, *h_b, *h_c ;
+	char *h_a, *h_b, *h_c;
+	camSettings *h_s;
 	//device buffers
 	char *d_a, *d_b, *d_c;
+	camSettings *d_s;
 	
 	float lcStrength;
 	float lcZoom;
@@ -40,11 +49,8 @@ private:
 	void output();
 	int threshold;
 	
-	int bufferSize;
-	int bufferSize2;
-	
-
-	
+	int bufferImgSize;
+	int bufferSettings;
 };
 
 #endif // CAMARRAY_H
