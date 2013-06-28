@@ -96,15 +96,18 @@ void CamArray::initBuffers() {
 	//host buffers
 	cudaMallocHost(&h_a, bufferSize);
 	cudaMallocHost(&h_b, bufferSize2);
+	cudaMallocHost(&h_c, bufferSize2);
 	
 	//device buffers
 	cudaMalloc((void**) &d_a, bufferSize);
 	cudaMalloc((void**) &d_b, bufferSize2);
+	cudaMalloc((void**) &d_c, bufferSize2);
 }
 #else //NOCUDA
 void CamArray::initBuffers() {
 	h_a = reinterpret_cast<char*>(malloc(bufferSize));
 	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
+	h_c = reinterpret_cast<char*>(malloc(bufferSize2));
 }
 #endif
 
@@ -166,16 +169,18 @@ void CamArray::mainloop()
 		int height2 = ySize2;
 		float strength = lcStrength;
 		float zoom = lcZoom;
+		int myX, myY;
 		
 		int offset = 0;
+		// lensCorrection
 		for( int n = 0; n < numCams; n++)
 		{
 			for (int y = 0; y < ySize2; y++)
 			{
 				for (int x = 0; x < xSize2; x++)
 				{
-					int myX = x;
-					int myY = y;
+					myX = x;
+					myY = y;
 					int elemID = myY*width2 + myX;                              // index within linear array
 
 					myX += (width-width2)/2;
@@ -207,6 +212,36 @@ void CamArray::mainloop()
 			}
 			offset   += xSize*ySize;
 		}
+		
+		// rotate
+		float sin_, cos_;
+		offset = 0;
+		int ydiff, xdiff;
+		int xCenter = width/2, yCenter = height/2;
+		
+		for( int n = 0; n < numCams; n++)
+		{
+			sin_ = sin(cams[n]->angle);
+			cos_ = cos(cams[n]->angle);
+			for (int y = 0; y < ySize2; y++)
+			{
+				ydiff = yCenter - y;
+				for (int x = 0; x < xSize2; x++)
+				{
+					xdiff = xCenter - x;
+					myX = xCenter + (-xdiff * cos_ - ydiff * sin_);
+					if (myX < 0 || myX >= width)
+						continue;
+					myY = yCenter + (-ydiff * cos_ + xdiff * sin_);
+					if (myY < 0 || myY >= height)
+						continue;
+					h_c[offset + y*width + x] = h_b[offset + myY*width + myX];
+				}
+			}
+			offset += ySize*xSize;
+		}
+		
+		
 		output();
 	}
 }
@@ -239,8 +274,16 @@ void CamArray::output()
 		{
 			for (int x = 0; x < xSize2; x++)
 			{
-				int val = h_b[offset+y*xSize2+x] <= threshold ? 255 : 0;
-				w->i.setPixel(xOffset2+x,y+ySize+ySize, qRgb(val, val, val));
+				int val = h_c[offset+y*xSize2+x];
+				w->i.setPixel(xOffset2+x,y+ySize*2, qRgb(val, val, val));
+			}
+		}
+		for (int y = 0; y < ySize2; y++)
+		{
+			for (int x = 0; x < xSize2; x++)
+			{
+				int val = h_c[offset+y*xSize2+x] <= threshold ? 255 : 0;
+				w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
 			}
 		}
 		xOffset  += xSize;

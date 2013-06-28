@@ -26,6 +26,7 @@ public:
 	void loop();
     void doOurStuff(void* bufStart, unsigned int size, int index);
 	struct buffer *buffers;
+	float angle;
 
 private:
 	QSemaphore *sem;

@@ -27,9 +27,9 @@ public:
 private:
 	QSemaphore *sem;
 	//host buffers
-	char* h_a, *h_b;
+	char *h_a, *h_b, *h_c ;
 	//device buffers
-	char* d_a, *d_b;
+	char *d_a, *d_b, *d_c;
 	
 	float lcStrength;
 	float lcZoom;
