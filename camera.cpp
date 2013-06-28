@@ -77,6 +77,7 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 				fd, buf.m.offset);
 
 	}
+	angle = 2.0;
 }
 
 Camera::~Camera()
