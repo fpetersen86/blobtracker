@@ -9,11 +9,20 @@
 
 
 //GPU Kernel
-__global__ void lensCorrection(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
+__global__ void lensCorrection(char *image,
+							   char *output,
+							   int width,
+							   int height,
+							   int width2,
+							   int height2,
+							   float strength,
+							   float zoom
+							  )
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width2 + x + blockIdx.z*blockDim.x*blockDim.y;                             // index within linear array
+    int elemID = y*width2 + x;                             // index within linear array
+    int offset = blockIdx.z * width * height;
     
     x += (width-width2)/2;
 	y += (height-height2)/2;
@@ -38,17 +47,52 @@ __global__ void lensCorrection(char *image, char *output, int width, int height,
 	int sourceX = halfWidth + theta * newX * zoom;
 	int sourceY = halfHeight + theta * newY * zoom;
 	
-	output[elemID] = image[sourceY*width + sourceX];
+	output[elemID + offset] = image[sourceY*width + sourceX + offset];
 }
+
+__global__ void rotate(char *image,
+					   char *output,
+					   camSettings *settings,
+					   int width,
+					   int height
+					  )
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int elemID = y*width + x;                             // index within linear array
+    int offset = blockIdx.z * width * height;
+	
+	
+	float sin_, cos_;
+	int ydiff, xdiff;
+	int xCenter = width/2;
+	int yCenter = height/2;
+	
+	sin_ = sin(settings[blockIdx.z].angle);
+	cos_ = cos(settings[blockIdx.z].angle);
+	ydiff = yCenter - y;
+	xdiff = xCenter - x;
+	
+	int myX = xCenter + (-xdiff * cos_ - ydiff * sin_);
+	int myY = yCenter + (-ydiff * cos_ + xdiff * sin_);
+	
+	if (myY < 0 || myY >= height || myX < 0 || myX >= width) // ekliges borderhandling :(
+		return;
+    
+	output[offset + y*width + x] = image[offset + myY*width + myX];
+}
+
 
 __global__ void lensCorrection2(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width + x;                              // index within linear array
+    int elemID = y*width2 + x;                             // index within linear array
+    int offset = blockIdx.z * width * height;
     
-	output[elemID] = image[elemID];
+	output[elemID + offset] = image[elemID + offset];
 }
+
 
 #endif
 
@@ -77,8 +121,8 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 	sem = new QSemaphore(numCams);
 	sem->acquire(numCams);
 	
-	bufferSize = xSize * ySize * numCams * sizeof(char);
-	bufferSize2 = xSize2 * ySize2 * numCams * sizeof(char);
+	bufferImgSize = xSize * ySize * numCams * sizeof(char);
+	bufferSettings = numCams * sizeof(camSettings);
 	threshold = 20;
 	
 	initBuffers();
@@ -88,26 +132,32 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 		{
 			c = camList.at(i);
 			cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
+			h_s[i].angle = 1.0;
+			h_s[i].xOffset = 0;
+			h_s[i].yOffset = 0;
 		}
 }
 
 #ifdef CUDA
 void CamArray::initBuffers() {
 	//host buffers
-	cudaMallocHost(&h_a, bufferSize);
-	cudaMallocHost(&h_b, bufferSize2);
-	cudaMallocHost(&h_c, bufferSize2);
+	cudaMallocHost(&h_a, bufferImgSize);
+	cudaMallocHost(&h_b, bufferImgSize);
+	cudaMallocHost(&h_c, bufferImgSize);
+	cudaMallocHost(&h_s, bufferSettings);
 	
 	//device buffers
-	cudaMalloc((void**) &d_a, bufferSize);
-	cudaMalloc((void**) &d_b, bufferSize2);
-	cudaMalloc((void**) &d_c, bufferSize2);
+	cudaMalloc((void**) &d_a, bufferImgSize);
+	cudaMalloc((void**) &d_b, bufferImgSize);
+	cudaMalloc((void**) &d_c, bufferImgSize);
+	cudaMalloc((void**) &d_s, bufferSettings);
 }
 #else //NOCUDA
 void CamArray::initBuffers() {
-	h_a = reinterpret_cast<char*>(malloc(bufferSize));
-	h_b = reinterpret_cast<char*>(malloc(bufferSize2));
-	h_c = reinterpret_cast<char*>(malloc(bufferSize2));
+	h_a = reinterpret_cast<char*>(malloc(bufferImgSize));
+	h_b = reinterpret_cast<char*>(malloc(bufferImgSize));
+	h_c = reinterpret_cast<char*>(malloc(bufferImgSize));
+	h_s = reinterpret_cast<camSettings*>(malloc(bufferSettings));
 }
 #endif
 
@@ -138,13 +188,22 @@ void CamArray::mainloop()
 			sem->acquire(numCams);
 		else 
 			msleep(8);
-		cudaMemcpy( d_a, h_a, bufferSize, cudaMemcpyHostToDevice );
+		cudaMemcpy( d_a, h_a, bufferImgSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
 		handleCUDAerror(__LINE__);
 		
-		cudaMemcpy( h_b, d_b, bufferSize2, cudaMemcpyDeviceToHost );
+		cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
+		handleCUDAerror(__LINE__);
+		
+		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
+		handleCUDAerror(__LINE__);
+		
+		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
+		handleCUDAerror(__LINE__);
+		
+		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
 		output();
@@ -340,13 +399,23 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFree(d_b);
 	handleCUDAerror(__LINE__);
+	cudaFree(d_c);
+	handleCUDAerror(__LINE__);
+	cudaFree(d_s);
+	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_a);
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_b);
 	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_c);
+	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_s);
+	handleCUDAerror(__LINE__);
 #else
 	free(h_a);
 	free(h_b);
+	free(h_c);
+	free(h_s);
 #endif
 	qDebug("Memory deallocated successfully\n");
 }
