@@ -37,6 +37,11 @@ private:
 	bool stopped;
 	int video_set_format(int dev, unsigned int w, unsigned int h);
 	int video_set_framerate(int dev);
+	
+public slots:
+
+	
+	
 };
 
 #endif // CAMERA_H
