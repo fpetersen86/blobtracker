@@ -9,8 +9,16 @@
 
 //class webcamtest;
 
+struct camSettings
+{
+	float angle;
+	int xOffset;
+	int yOffset;
+};
+
 class Camera : public QThread
 {
+	Q_OBJECT
 	struct buffer
 	{
         void   *start;
@@ -18,7 +26,7 @@ class Camera : public QThread
 	};
 
 public:
-    Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer);
+    Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer, camSettings *cset);
     virtual ~Camera();
 	
 	void run();
@@ -26,7 +34,7 @@ public:
 	void loop();
     void doOurStuff(void* bufStart, unsigned int size, int index);
 	struct buffer *buffers;
-	float angle;
+	int getID() {return id;};
 
 private:
 	QSemaphore *sem;
@@ -37,8 +45,12 @@ private:
 	bool stopped;
 	int video_set_format(int dev, unsigned int w, unsigned int h);
 	int video_set_framerate(int dev);
+	camSettings *settings;
 	
 public slots:
+	void setXOffset(int xOff) {settings->xOffset = xOff;};
+	void setYOffset(int yOff) {settings->yOffset = yOff;};
+	void setAngle(double angle) {settings->angle = angle;};
 
 	
 	

@@ -15,8 +15,11 @@ const int xSize = 320;
 const int ySize = 240;
 const int framerate = 125;
 
-Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer) : QThread(NULL)
+Camera::Camera(const char* device, const int id, QSemaphore* sem, char* myBuffer, camSettings* cset) : QThread(NULL)
 {
+	settings = cset;
+	
+	
 	this->id = id;
 	this->sem = sem;
 	this->myBuffer = myBuffer;
@@ -77,12 +80,18 @@ Camera::Camera(const char *device, const int id, QSemaphore *sem, char* myBuffer
 				fd, buf.m.offset);
 
 	}
-	angle = 2.0;
 }
 
 Camera::~Camera()
 {
 	stop();
+	QSettings s;
+	s.beginGroup("Cam::"+QString::number(id));
+	s.setValue("angle", settings->angle);
+	s.setValue("xOffset", settings->xOffset);
+	s.setValue("yOffset", settings->yOffset);
+	s.endGroup();	
+	
 	unsigned int i;
 	for (i = 0; i < num_buffers; ++i)
 		munmap(buffers[i].start, buffers[i].length);
@@ -183,3 +192,6 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 	}
 	sem->release(1);
 }
+
+
+#include "camera.moc"

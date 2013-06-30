@@ -13,139 +13,194 @@
   <property name="windowTitle">
    <string>Settings</string>
   </property>
-  <layout class="QFormLayout" name="formLayout">
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>LensCorrection &amp;Strength</string>
-     </property>
-     <property name="buddy">
-      <cstring>lcStrengthSpinBox</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QDoubleSpinBox" name="lcStrengthSpinBox">
-     <property name="maximum">
-      <double>99999.990000000005239</double>
-     </property>
-     <property name="singleStep">
-      <double>0.100000000000000</double>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="label_2">
-     <property name="text">
-      <string>Lenscorrection &amp;Zoom</string>
-     </property>
-     <property name="buddy">
-      <cstring>lcZoomSpinBox</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QDoubleSpinBox" name="lcZoomSpinBox">
-     <property name="maximum">
-      <double>320.000000000000000</double>
-     </property>
-     <property name="singleStep">
-      <double>0.100000000000000</double>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_3">
-     <property name="text">
-      <string>Grid&amp;X</string>
-     </property>
-     <property name="buddy">
-      <cstring>gridXSpinBox</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1">
-    <widget class="QSpinBox" name="gridXSpinBox">
-     <property name="maximum">
-      <number>320</number>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="label_4">
-     <property name="text">
-      <string>Grid&amp;Y</string>
-     </property>
-     <property name="buddy">
-      <cstring>gridYSpinBox</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <widget class="QSpinBox" name="gridYSpinBox">
-     <property name="maximum">
-      <number>240</number>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="label_5">
-     <property name="text">
-      <string>&amp;Color #</string>
-     </property>
-     <property name="buddy">
-      <cstring>colEdit</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1">
-    <widget class="QLineEdit" name="colEdit">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="inputMask">
-      <string>HHHHHH; </string>
-     </property>
-     <property name="maxLength">
-      <number>6</number>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="label_6">
-     <property name="text">
-      <string>&amp;Threshold</string>
-     </property>
-     <property name="buddy">
-      <cstring>threshSlider</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="1">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QSlider" name="threshSlider">
-       <property name="maximum">
-        <number>255</number>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>LensCorrection &amp;Strength</string>
        </property>
-       <property name="value">
-        <number>32</number>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+       <property name="buddy">
+        <cstring>lcStrengthSpinBox</cstring>
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QSpinBox" name="threshBox">
+     <item row="0" column="1">
+      <widget class="QDoubleSpinBox" name="lcStrengthSpinBox">
        <property name="maximum">
-        <number>255</number>
+        <double>99999.990000000005239</double>
        </property>
-       <property name="value">
-        <number>32</number>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Lenscorrection &amp;Zoom</string>
+       </property>
+       <property name="buddy">
+        <cstring>lcZoomSpinBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="lcZoomSpinBox">
+       <property name="maximum">
+        <double>320.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Grid&amp;X</string>
+       </property>
+       <property name="buddy">
+        <cstring>gridXSpinBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QSpinBox" name="gridXSpinBox">
+       <property name="maximum">
+        <number>320</number>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Grid&amp;Y</string>
+       </property>
+       <property name="buddy">
+        <cstring>gridYSpinBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QSpinBox" name="gridYSpinBox">
+       <property name="maximum">
+        <number>240</number>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>&amp;Color #</string>
+       </property>
+       <property name="buddy">
+        <cstring>colEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="colEdit">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="inputMask">
+        <string>HHHHHH; </string>
+       </property>
+       <property name="maxLength">
+        <number>6</number>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>&amp;Threshold</string>
+       </property>
+       <property name="buddy">
+        <cstring>threshSlider</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QSlider" name="threshSlider">
+         <property name="maximum">
+          <number>255</number>
+         </property>
+         <property name="value">
+          <number>32</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="threshBox">
+         <property name="maximum">
+          <number>255</number>
+         </property>
+         <property name="value">
+          <number>32</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="6" column="1">
+      <widget class="QCheckBox" name="calibrationCheckBox">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Calibration&amp;Mode</string>
+       </property>
+       <property name="buddy">
+        <cstring>calibrationCheckBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QSpinBox" name="canvXSpinBox">
+       <property name="maximum">
+        <number>3200</number>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1">
+      <widget class="QSpinBox" name="canvYSpinBox">
+       <property name="maximum">
+        <number>2400</number>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>CanvasSizeX</string>
+       </property>
+       <property name="buddy">
+        <cstring>canvXSpinBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>CanvasSizeY</string>
+       </property>
+       <property name="buddy">
+        <cstring>canvYSpinBox</cstring>
        </property>
       </widget>
      </item>

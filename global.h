@@ -7,6 +7,6 @@ const int xSize2 = xSize;
 const int ySize2 = ySize;
 const int imgRows = 4;
 
-
+const float  PI=3.14159265358979f;
 
 #endif

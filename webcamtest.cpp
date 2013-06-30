@@ -10,6 +10,10 @@
 
 webcamtest::webcamtest()
 {
+	QCoreApplication::setApplicationName("Blobtracker");
+	QCoreApplication::setOrganizationName("Stuff");
+
+	QSettings s;
 	imgTestMode = QApplication::argc() > 1;
 	winX = 720;
 	winY = 480;
@@ -37,6 +41,13 @@ webcamtest::webcamtest()
 			this, SLOT(setColor()));
 	connect(ui->threshSlider, SIGNAL(valueChanged(int)),
 			this, SLOT(setThreshold(int)));
+	connect(ui->calibrationCheckBox, SIGNAL(toggled(bool)),
+			this, SLOT(setCalibrating(bool)));
+	connect(ui->canvXSpinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvX(int)));
+	connect(ui->canvYSpinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvY(int)));
+	
 	if(imgTestMode) 
 	{
 		connect(ui->lcStrengthSpinBox, SIGNAL(valueChanged(double)),
@@ -55,21 +66,27 @@ webcamtest::webcamtest()
 		ca->loadFiles();
 	}
 	
-	ui->lcStrengthSpinBox->setValue(5.0);
-	ui->lcZoomSpinBox->setValue(2.0);
+	ui->lcStrengthSpinBox->setValue(s.value("lcStrength", 5.0).toDouble());
+	ui->lcZoomSpinBox->setValue(s.value("lcZoom", 2.0).toDouble());
 	ui->gridXSpinBox->setValue(0);
 	ui->gridXSpinBox->setMaximum(imageWidth/2);
 	ui->gridYSpinBox->setValue(0);
 	ui->gridYSpinBox->setMaximum(imageHeight/2);
-	ui->colEdit->setText("62b5ff");
-	qDebug() << xGrid << "Q" << imageWidth;
+	ui->colEdit->setText(s.value("gridColor", "62b5ff").toString());
+	ui->canvXSpinBox->setValue(s.value("canvX", 640).toInt());
+	ui->canvYSpinBox->setValue(s.value("canvY", 480).toInt());
+	
+	
+	for(int i = 0; i < ca->numCams; i++)
+	{
+		ui->verticalLayout->addWidget(new CamSettingsUi(ca->cams[i], this));
+	}
 	//setAttribute(Qt::WA_DeleteOnClose, true);
 	setAttribute(Qt::WA_QuitOnClose, true);
 	w->setAttribute(Qt::WA_QuitOnClose, false);
 	//w->setAttribute(Qt::WA_DeleteOnClose, true);
 	
 	w->show();
-	
 }
 
 void webcamtest::resizeImage(int num)
@@ -80,9 +97,26 @@ void webcamtest::resizeImage(int num)
 	resize(x,y);
 }
 
+void webcamtest::resizeMe()
+{
+	if (ca->calibrating)
+	{
+		i = QImage(ca->canvX, ca->canvX, QImage::Format_RGB32);
+		resize(ca->canvX,ca->canvY);
+	}
+	else
+		resizeImage(ca->numCams);
+}
+
 
 webcamtest::~webcamtest()
 {
+	QSettings s;
+	s.setValue("lcStrength", ui->lcStrengthSpinBox->value());
+	s.setValue("lcZoom", ui->lcZoomSpinBox->value());
+	s.setValue("gridColor", ui->colEdit->text());
+	s.setValue("canvX", ui->canvXSpinBox->value());
+	s.setValue("canvY", ui->canvYSpinBox->value());
 	//w->close();
 	ca->stop();
 	ca->wait();
@@ -126,6 +160,25 @@ void webcamtest::setColor()
 	myColor.setNamedColor("#" + ui->colEdit->displayText());
 }
 
+CamSettingsUi::CamSettingsUi(Camera* cam, QWidget* parent): QWidget(parent)
+{
+	ui = new Ui_camSettings();
+	ui->setupUi(this);
+	ui->angleSpinBox->setMaximum(4*PI);
+	
+	connect(ui->angleSpinBox, SIGNAL(valueChanged(double)),cam, SLOT(setAngle(double)));
+	connect(ui->xOffSpinBox, SIGNAL(valueChanged(int)), cam, SLOT(setXOffset(int)));
+	connect(ui->yOffSpinBox, SIGNAL(valueChanged(int)), cam, SLOT(setYOffset(int)));
+	
+	QSettings s;
+	s.beginGroup("cam::"+QString::number(cam->getID()));
+	ui->angleSpinBox->setValue(s.value("angle", 0.0).toFloat());
+	ui->xOffSpinBox->setValue(s.value("xoffset", xSize * cam->getID()).toInt());
+	ui->yOffSpinBox->setValue(s.value("yoffset", 0).toInt());
+	s.endGroup();
+	
+	show();
+}
 
 
 #include "webcamtest.moc"
