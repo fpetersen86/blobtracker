@@ -83,7 +83,7 @@ __global__ void rotate(char *image,
 }
 
 
-__global__ void lensCorrection2(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
+__global__ void blend(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
