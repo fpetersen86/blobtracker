@@ -47,6 +47,10 @@ webcamtest::webcamtest()
 			this, SLOT(setCanvX(int)));
 	connect(ui->canvYSpinBox, SIGNAL(valueChanged(int)),
 			this, SLOT(setCanvY(int)));
+	/*connect(ui->canvXSpinBox, SIGNAL(editingFinished()),
+			this, SLOT(setCanvX()));
+	connect(ui->canvYSpinBox, SIGNAL(editingFinished()),
+			this, SLOT(setCanvY()));*/
 	
 	if(imgTestMode) 
 	{
@@ -165,6 +169,9 @@ CamSettingsUi::CamSettingsUi(Camera* cam, QWidget* parent): QWidget(parent)
 	ui = new Ui_camSettings();
 	ui->setupUi(this);
 	ui->angleSpinBox->setMaximum(4*PI);
+	ui->angleSpinBox->setMinimum(-4*PI);
+	ui->angleSpinBox->setDecimals(6);
+	ui->angleSpinBox->setSingleStep(PI/360);
 	
 	connect(ui->angleSpinBox, SIGNAL(valueChanged(double)),cam, SLOT(setAngle(double)));
 	connect(ui->xOffSpinBox, SIGNAL(valueChanged(int)), cam, SLOT(setXOffset(int)));
@@ -172,7 +179,7 @@ CamSettingsUi::CamSettingsUi(Camera* cam, QWidget* parent): QWidget(parent)
 	
 	QSettings s;
 	s.beginGroup("cam::"+QString::number(cam->getID()));
-	ui->angleSpinBox->setValue(s.value("angle", 0.0).toFloat());
+	ui->angleSpinBox->setValue(s.value("angle", 0.0).toDouble());
 	ui->xOffSpinBox->setValue(s.value("xoffset", xSize * cam->getID()).toInt());
 	ui->yOffSpinBox->setValue(s.value("yoffset", 0).toInt());
 	s.endGroup();
