@@ -54,6 +54,8 @@ public slots:
 	void setCalibrating(bool b) {ca->calibrating = b;resizeMe();};
 	void setCanvX(int cx) {ca->canvX = cx; resizeMe();};
 	void setCanvY(int cy) {ca->canvY = cy; resizeMe();};
+	void setCanvX() {ca->canvX = ui->canvXSpinBox->value(); resizeMe();};
+	void setCanvY() {ca->canvY = ui->canvYSpinBox->value(); resizeMe();};
 
 };
 

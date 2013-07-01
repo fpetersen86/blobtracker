@@ -133,9 +133,9 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 		{
 			c = camList.at(i);
 			cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a, &(h_s[i]));
-			h_s[i].angle = 1.0;
-			h_s[i].xOffset = 0;
-			h_s[i].yOffset = 0;
+			//h_s[i].angle = 1.0;
+			//h_s[i].xOffset = 0;
+			//h_s[i].yOffset = 0;
 		}
 
 	
