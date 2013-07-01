@@ -8,13 +8,6 @@
 class webcamtest;
 class Camera;
 
-struct camSettings
-{
-	float angle;
-	int xOffset;
-	int yOffset;
-};
-
 class CamArray : public QThread
 {
 friend class webcamtest;
@@ -25,6 +18,7 @@ public:
 	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
 	bool imgTest;
+	bool calibrating;	
 	webcamtest *w;
 	void run();
 	bool stopped;
@@ -40,6 +34,8 @@ private:
 	char *d_a, *d_b, *d_c;
 	camSettings *d_s;
 	
+	int canvX;
+	int canvY;
 	float lcStrength;
 	float lcZoom;
 	void initBuffers();

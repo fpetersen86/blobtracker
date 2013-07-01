@@ -99,6 +99,7 @@ __global__ void lensCorrection2(char *image, char *output, int width, int height
 
 CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {
+	calibrating = false;
 	w = p; // All hail the mighty alphabet ;)
 	//initialise cams
 	QStringList camList;
@@ -131,11 +132,13 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 		for(int i = 0; i < numCams; i++)
 		{
 			c = camList.at(i);
-			cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a);
+			cams[i] = new Camera(d.absoluteFilePath(c).toStdString().c_str(), i, sem, h_a, &(h_s[i]));
 			h_s[i].angle = 1.0;
 			h_s[i].xOffset = 0;
 			h_s[i].yOffset = 0;
 		}
+
+	
 }
 
 #ifdef CUDA
@@ -287,8 +290,8 @@ void CamArray::mainloop()
 		
 		for( int n = 0; n < numCams; n++)
 		{
-			sin_ = sin(cams[n]->angle);
-			cos_ = cos(cams[n]->angle);
+			sin_ = sin(h_s[n].angle);
+			cos_ = cos(h_s[n].angle);
 			for (int y = 0; y < ySize2; y++)
 			{
 				ydiff = yCenter - y;
@@ -317,45 +320,76 @@ void CamArray::mainloop()
 void CamArray::output()
 {
 	int offset = 0, xOffset = 0, xOffset2 = 0;
-	for( int n = 0; n < numCams; n++)
-	{
-		for (int y = 0; y < ySize; y++)
+	if (!calibrating)
+		for( int n = 0; n < numCams; n++)
 		{
-			for (int x = 0; x < xSize; x++)
+			for (int y = 0; y < ySize; y++)
 			{
-				int val = h_a[offset+y*xSize+x];
-				w->i.setPixel(xOffset+x,y, qRgb(val, val, val));
+				for (int x = 0; x < xSize; x++)
+				{
+					int val = h_a[offset+y*xSize+x];
+					w->i.setPixel(xOffset+x,y, qRgb(val, val, val));
+				}
 			}
-		}
 
-		for (int y = 0; y < ySize2; y++)
-		{
-			for (int x = 0; x < xSize2; x++)
+			for (int y = 0; y < ySize2; y++)
 			{
-				int val = h_b[offset+y*xSize2+x];
-				w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
+				for (int x = 0; x < xSize2; x++)
+				{
+					int val = h_b[offset+y*xSize2+x];
+					w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
+				}
 			}
-		}
-		for (int y = 0; y < ySize2; y++)
-		{
-			for (int x = 0; x < xSize2; x++)
+			for (int y = 0; y < ySize2; y++)
 			{
-				int val = h_c[offset+y*xSize2+x];
-				w->i.setPixel(xOffset2+x,y+ySize*2, qRgb(val, val, val));
+				for (int x = 0; x < xSize2; x++)
+				{
+					int val = h_c[offset+y*xSize2+x];
+					w->i.setPixel(xOffset2+x,y+ySize*2, qRgb(val, val, val));
+				}
 			}
-		}
-		for (int y = 0; y < ySize2; y++)
-		{
-			for (int x = 0; x < xSize2; x++)
+			for (int y = 0; y < ySize2; y++)
 			{
-				int val = h_c[offset+y*xSize2+x] <= threshold ? 255 : 0;
-				w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
+				for (int x = 0; x < xSize2; x++)
+				{
+					int val = h_c[offset+y*xSize2+x] <= threshold ? 255 : 0;
+					w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
+				}
 			}
+			xOffset  += xSize;
+			xOffset2 += xSize2;
+			offset   += xSize*ySize;
 		}
-		xOffset  += xSize;
-		xOffset2 += xSize2;
-		offset   += xSize*ySize;
-	}
+	else
+	{
+		int yOffset, xMax, yMax, x, y;
+		w->i.fill(Qt::black);
+		
+		for( int n = 0; n < numCams; n++)
+		{
+			xOffset2 = h_s[n].xOffset;
+			yOffset = h_s[n].yOffset;
+			//yMax = yOffset+ySize > canvY ? canvY - yOffset : ySize;
+			for (y = 0; y < ySize; y++)
+			{
+				if (y+yOffset < 0 || y+yOffset >= canvY )
+					continue;
+				//xMax = xOffset+xSize > canvX ? canvX - xOffset : xSize; //xMax = xSize;
+				for (x = 0; x < xSize; x++)
+				{
+					if (x+xOffset2 < 0 || x+xOffset2 >= canvX)
+						continue;
+					int val = h_c[offset+y*xSize+x];
+					if(val)
+						w->i.setPixel(x+xOffset2,y+yOffset, qRgb(val, val, val));
+				}
+			}
+			xOffset  += xSize;
+			offset   += xSize*ySize;
+		}
+	}	
+		
+		
 	w->update();
 	//qDebug("available: %d", sem->available());
 }

@@ -9,7 +9,7 @@ set (AUTOMOC true)
 
 include_directories(${QT_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 
-set(blobtracker_UIS settings.ui)
+set(blobtracker_UIS settings.ui camsettings.ui)
 qt4_wrap_ui(blobtracker_UIS_H ${blobtracker_UIS})
 
 set(blobtracker_SRCS webcamtest.cpp camera.cpp main.cpp)
