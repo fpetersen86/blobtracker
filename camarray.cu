@@ -352,7 +352,11 @@ void CamArray::output()
 			{
 				for (int x = 0; x < xSize2; x++)
 				{
-					int val = h_c[offset+y*xSize2+x] <= threshold ? 255 : 0;
+					char val = h_c[offset+y*xSize2+x];
+					if (val <= threshold)
+						val = 0;
+					else
+						val = 255;
 					w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
 				}
 			}
