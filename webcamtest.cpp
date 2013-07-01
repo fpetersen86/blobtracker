@@ -79,6 +79,8 @@ webcamtest::webcamtest()
 	ui->colEdit->setText(s.value("gridColor", "62b5ff").toString());
 	ui->canvXSpinBox->setValue(s.value("canvX", 640).toInt());
 	ui->canvYSpinBox->setValue(s.value("canvY", 480).toInt());
+	ui->threshSlider->setValue(s.value("threshold").toInt());
+	ui->threshBox->setValue(s.value("threshold").toInt());
 	
 	
 	for(int i = 0; i < ca->numCams; i++)
@@ -121,6 +123,7 @@ webcamtest::~webcamtest()
 	s.setValue("gridColor", ui->colEdit->text());
 	s.setValue("canvX", ui->canvXSpinBox->value());
 	s.setValue("canvY", ui->canvYSpinBox->value());
+	s.setValue("threshold", ui->threshSlider->value());
 	//w->close();
 	ca->stop();
 	ca->wait();

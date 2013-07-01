@@ -315,7 +315,11 @@ void CamArray::mainloop()
 	}
 }
 #endif
-
+void CamArray::findblob()
+{
+	
+	
+}
 
 void CamArray::output()
 {

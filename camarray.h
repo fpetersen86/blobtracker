@@ -42,6 +42,7 @@ private:
 	//void initCUDA();
 	void mainloop();
 	//void mainloopCUDA();
+	void findblob();
 	void output();
 	int threshold;
 	
