@@ -352,7 +352,7 @@ void CamArray::output()
 			{
 				for (int x = 0; x < xSize2; x++)
 				{
-					char val = h_c[offset+y*xSize2+x];
+					unsigned char val = h_c[offset+y*xSize2+x];
 					if (val <= threshold)
 						val = 0;
 					else
