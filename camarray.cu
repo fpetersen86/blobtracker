@@ -79,7 +79,7 @@ __global__ void rotate(char *image,
 	if (myY < 0 || myY >= height || myX < 0 || myX >= width) // ekliges borderhandling :(
 		return;
     
-	output[offset + y*width + x] = image[offset + myY*width + myX];
+	output[offset + elemID] = image[offset + myY*width + myX];
 }
 
 
@@ -141,10 +141,10 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 #ifdef CUDA
 void CamArray::initBuffers() {
 	//host buffers
-	cudaMallocHost(&h_a, bufferImgSize);
+	cudaMallocHost(&h_a, bufferImgSize, 0x04);
 	cudaMallocHost(&h_b, bufferImgSize);
 	cudaMallocHost(&h_c, bufferImgSize);
-	cudaMallocHost(&h_s, bufferSettings);
+	cudaMallocHost(&h_s, bufferSettings, 0x04);
 	
 	//device buffers
 	cudaMalloc((void**) &d_a, bufferImgSize);
@@ -182,12 +182,19 @@ void CamArray::mainloop()
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y, numCams);
 	
+// 	cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
+// 	handleCUDAerror(__LINE__);
+	
 	while(!stopped)
 	{
-		if (!imgTest)
+		if (!imgTest){
 			sem->acquire(numCams);
-		else 
+		}
+			else
+		{
+			qDebug() << "frame dropped";
 			msleep(8);
+		}
 		cudaMemcpy( d_a, h_a, bufferImgSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
