@@ -9,6 +9,58 @@
 
 
 //GPU Kernel
+__global__ void find_features(float *feature_values, int* feature_positions, const int width, const int height, const int eta, const int beta_2) 
+{
+    const int x = blockIdx.x * beta_2;
+    const int y = blockIdx.y*beta_2;    
+    const int offset = (blockIdx.x + blockIdx.y*gridDim.x)*eta;
+    const int double_offset = offset*2;
+    int min_pos;
+    float min_value = 1.0f;
+    float value; 
+    
+    for(int i = 0; i<eta; i++)
+    {        
+        feature_positions[double_offset + i*2] = x+i;
+        feature_positions[double_offset + i*2 + 1] = y;
+        value = feature_values[offset + i] = tex2D(float1_tex, x+i, y).x;
+             
+        if(value <= min_value)
+        {        
+            min_value = value;
+            min_pos = i;
+        }
+    }    
+    
+    if( y <= height - beta_2 && x< width - beta_2)
+    {            
+        for(int j = 0; j<beta_2; j++)
+            for(int i = 0; i<beta_2; i++)
+            {        
+                value = tex2D(float1_tex, float(x+i) + 0.5f, float(y+j) + 0.5f).x;
+                if(value > min_value)
+                {
+                    feature_positions[double_offset + min_pos*2] = x+i;
+                    feature_positions[double_offset + min_pos*2 + 1] = y+j;
+                    feature_values[offset + min_pos] = value;
+                    min_pos = find_min_pos(feature_values, offset, eta);
+                    min_value = feature_values[offset + min_pos];
+                }
+            }
+
+        for(int i = 0; i<eta; i++)
+        {
+            if(feature_values[offset + i] == 0.0f)
+            {
+                feature_positions[double_offset + i*2] = 0;
+                feature_positions[double_offset + i*2 + 1] = 0;
+            }
+        }
+    }
+}
+
+
+
 __global__ void lensCorrection(char *image,
 							   char *output,
 							   int width,
@@ -215,6 +267,42 @@ void CamArray::mainloop()
 		
 		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
+		
+		//test code - what does it do?
+		int beta_2 = 8; //???
+		int eta 20; //???
+		float* d_feature_values;
+		int *d_feature_positions;
+		float* h_feature_values;
+		int *h_feature_positions;
+		int data_width = (canvX/beta_2);
+		int data_height = (canvY/beta_2);
+		int feature_nb = data_width*data_height*eta;
+
+		dim3 extraction_block (1, 1, 1);
+		dim3 extraction_grid (_width/beta_2, _height/beta_2, 1);
+
+		cudaMalloc((void**)&d_feature_positions, 2*feature_nb*sizeof(int));
+		cudaMalloc((void**)&d_feature_values, feature_nb*sizeof(float));
+		
+		cudaMallocHost((void**)&h_feature_positions, 2*feature_nb*sizeof(int));
+		cudaMallocHost((void**)&h_feature_values, feature_nb*sizeof(float));
+		
+		find_features<<<cudaGridSize2,cudaBlockSize2>>>(d_feature_values, d_feature_positions, canvX, canvY, eta, beta_2);
+		
+		cudaMemcpy( h_feature_positions, d_feature_positions, 2*feature_nb*sizeof(int), cudaMemcpyDeviceToHost );
+		cudaMemcpy( h_feature_values, d_feature_values, feature_nb*sizeof(float), cudaMemcpyDeviceToHost );
+		
+		for (int i = 0; i < feature_nb; i++)
+		{
+			qDebug() << "blob " << i << " @ x " << h_feature_positions[i*2] << " y " 
+					 << h_feature_positions[i*2+1] << " with value = " << h_feature_values[i];
+		}
+		cudaFree(d_feature_positions);
+		cudaFree(d_feature_values);
+		cudaFreeHost(h_feature_positions);
+		cudaFreeHost(h_feature_values);
+		//end test
 		
 		output();
 	}
