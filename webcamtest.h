@@ -56,6 +56,10 @@ public slots:
 	void setCanvY(int cy) {ca->canvY = cy; resizeMe();};
 	void setCanvX() {ca->canvX = ui->canvXSpinBox->value(); resizeMe();};
 	void setCanvY() {ca->canvY = ui->canvYSpinBox->value(); resizeMe();};
+	void setCanvOffX(int i) {ca->canvOffX = i;};
+	void setCanvOffX2(int i) {ca->canvOffX2 = i;};
+	void setCanvOffY(int i) {ca->canvOffY = i;};
+	void setCanvOffY2(int i) {ca->canvOffY2 = i;};
 
 };
 

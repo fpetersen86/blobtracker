@@ -48,6 +48,10 @@ private:
 	
 	int canvX;
 	int canvY;
+	int canvOffX;
+	int canvOffX2;
+	int canvOffY;
+	int canvOffY2;
 	float lcStrength;
 	float lcZoom;
 	void initBuffers();
