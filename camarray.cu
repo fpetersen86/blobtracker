@@ -593,7 +593,7 @@ void CamArray::output()
 			{
 				for (x = 0; x < canvX; x++)
 				{
-					int val = h_d2[y*canvX+x];
+					int val = h_d[y*canvX+x];
 						w->i.setPixel(x,y, qRgb(val, val, val));
 				}
 			}

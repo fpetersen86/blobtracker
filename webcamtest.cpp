@@ -46,10 +46,14 @@ webcamtest::webcamtest()
 			this, SLOT(setCanvX(int)));
 	connect(ui->canvYSpinBox, SIGNAL(valueChanged(int)),
 			this, SLOT(setCanvY(int)));
-	/*connect(ui->canvXSpinBox, SIGNAL(editingFinished()),
-			this, SLOT(setCanvX()));
-	connect(ui->canvYSpinBox, SIGNAL(editingFinished()),
-			this, SLOT(setCanvY()));*/
+	connect(ui->canvOffX1spinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvOffX(int)));
+	connect(ui->canvOffX2spinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvOffX2(int)));
+	connect(ui->canvOffY1spinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvOffY(int)));
+	connect(ui->canvOffY2spinBox, SIGNAL(valueChanged(int)),
+			this, SLOT(setCanvOffY2(int)));
 	
 	if(imgTestMode) 
 	{
@@ -80,6 +84,10 @@ webcamtest::webcamtest()
 	ui->canvYSpinBox->setValue(s.value("canvY", 480).toInt());
 	ui->threshSlider->setValue(s.value("threshold").toInt());
 	ui->threshBox->setValue(s.value("threshold").toInt());
+	ui->canvOffX1spinBox->setValue(s.value("canvOffX1", 0).toInt());
+	ui->canvOffX2spinBox->setValue(s.value("canvOffX2", 20).toInt());
+	ui->canvOffY1spinBox->setValue(s.value("canvOffY1", 0).toInt());
+	ui->canvOffY2spinBox->setValue(s.value("canvOffY2", 20).toInt());
 	
 	for(int i = 0; i < ca->numCams; i++)
 	{
@@ -123,6 +131,10 @@ webcamtest::~webcamtest()
 	s.setValue("canvX", ui->canvXSpinBox->value());
 	s.setValue("canvY", ui->canvYSpinBox->value());
 	s.setValue("threshold", ui->threshSlider->value());
+	s.setValue("canvOffX1", ui->canvOffX1spinBox->value());
+	s.setValue("canvOffX2", ui->canvOffX2spinBox->value());
+	s.setValue("canvOffY1", ui->canvOffY1spinBox->value());
+	s.setValue("canvOffY2", ui->canvOffY2spinBox->value());
 	//w->close();
 	ca->stop();
 	ca->wait();
