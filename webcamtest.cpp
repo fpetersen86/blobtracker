@@ -171,6 +171,13 @@ void webcamtest::paintEvent(QPaintEvent* e)
 		for (int y = winY/2; y < winY; y+= gridHeight)
 			painter.drawLine(0, y, imageWidth*ca->numCams, y);
 	}
+	if (ca->viewmode == 1)
+	{
+		painter.drawLine(ca->canvOffX, 0, ca->canvOffX, ca->canvY);
+		painter.drawLine(ca->canvOffX2, 0, ca->canvOffX2, ca->canvY);
+		painter.drawLine(0, ca->canvOffY, ca->canvX, ca->canvOffY);
+		painter.drawLine(0, ca->canvOffY2, ca->canvX, ca->canvOffY2);
+	}
 	if (ca->viewmode == 2)
 	{
 		while (!ca->blobs.empty())
