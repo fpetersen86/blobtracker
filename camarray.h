@@ -8,6 +8,14 @@
 class webcamtest;
 class Camera;
 
+struct Blob
+{
+	int x;
+	int y;
+	int w;
+	int h;
+};
+
 class CamArray : public QThread
 {
 friend class webcamtest;
@@ -18,7 +26,7 @@ public:
 	Camera *cams[64]; // 64 == max# of cameras in Linux
 	int numCams;
 	bool imgTest;
-	bool calibrating;	
+	int viewmode;
 	webcamtest *w;
 	void run();
 	bool stopped;
@@ -44,6 +52,7 @@ private:
 	//void mainloopCUDA();
 	void findblob();
 	void output();
+    bool white(int x, int y);
 	int threshold;
 	
 	int bufferImgSize;

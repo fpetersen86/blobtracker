@@ -153,20 +153,13 @@
        </item>
       </layout>
      </item>
-     <item row="6" column="1">
-      <widget class="QCheckBox" name="calibrationCheckBox">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
      <item row="6" column="0">
       <widget class="QLabel" name="label_7">
        <property name="text">
-        <string>Calibration&amp;Mode</string>
+        <string>View&amp;Mode</string>
        </property>
        <property name="buddy">
-        <cstring>calibrationCheckBox</cstring>
+        <cstring>viewModeComboBox</cstring>
        </property>
       </widget>
      </item>
@@ -204,15 +197,46 @@
        </property>
       </widget>
      </item>
+     <item row="6" column="1">
+      <widget class="QComboBox" name="viewModeComboBox">
+       <item>
+        <property name="text">
+         <string>StepResults</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Calibration</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Whatever</string>
+        </property>
+       </item>
+      </widget>
+     </item>
     </layout>
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>lcStrengthSpinBox</tabstop>
+  <tabstop>lcZoomSpinBox</tabstop>
+  <tabstop>gridXSpinBox</tabstop>
+  <tabstop>gridYSpinBox</tabstop>
+  <tabstop>colEdit</tabstop>
+  <tabstop>threshSlider</tabstop>
+  <tabstop>threshBox</tabstop>
+  <tabstop>viewModeComboBox</tabstop>
+  <tabstop>canvXSpinBox</tabstop>
+  <tabstop>canvYSpinBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
    <sender>threshSlider</sender>
-   <signal>sliderMoved(int)</signal>
+   <signal>valueChanged(int)</signal>
    <receiver>threshBox</receiver>
    <slot>setValue(int)</slot>
    <hints>
@@ -223,6 +247,22 @@
     <hint type="destinationlabel">
      <x>346</x>
      <y>156</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>threshBox</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>threshSlider</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>345</x>
+     <y>157</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>229</x>
+     <y>157</y>
     </hint>
    </hints>
   </connection>

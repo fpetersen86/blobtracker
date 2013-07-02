@@ -41,8 +41,8 @@ webcamtest::webcamtest()
 			this, SLOT(setColor()));
 	connect(ui->threshSlider, SIGNAL(valueChanged(int)),
 			this, SLOT(setThreshold(int)));
-	connect(ui->calibrationCheckBox, SIGNAL(toggled(bool)),
-			this, SLOT(setCalibrating(bool)));
+	connect(ui->viewModeComboBox, SIGNAL(currentIndexChanged(int)),
+			this, SLOT(setViewMode(int)));
 	connect(ui->canvXSpinBox, SIGNAL(valueChanged(int)),
 			this, SLOT(setCanvX(int)));
 	connect(ui->canvYSpinBox, SIGNAL(valueChanged(int)),
@@ -105,7 +105,7 @@ void webcamtest::resizeImage(int num)
 
 void webcamtest::resizeMe()
 {
-	if (ca->calibrating)
+	if (ca->viewmode)
 	{
 		i = QImage(ca->canvX, ca->canvX, QImage::Format_RGB32);
 		resize(ca->canvX,ca->canvY);

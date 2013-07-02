@@ -51,7 +51,7 @@ public slots:
 	void setYGrid(int i) {yGrid = i;};
 	void setColor();
 	void setThreshold(int i) {ca->threshold = i;};
-	void setCalibrating(bool b) {ca->calibrating = b;resizeMe();};
+	void setViewMode(int b) {ca->viewmode = b;resizeMe();};
 	void setCanvX(int cx) {ca->canvX = cx; resizeMe();};
 	void setCanvY(int cy) {ca->canvY = cy; resizeMe();};
 	void setCanvX() {ca->canvX = ui->canvXSpinBox->value(); resizeMe();};
