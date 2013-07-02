@@ -160,6 +160,19 @@ void webcamtest::paintEvent(QPaintEvent* e)
 		for (int y = winY/2; y < winY; y+= gridHeight)
 			painter.drawLine(0, y, imageWidth*ca->numCams, y);
 	}
+	if (ca->viewmode == 0)
+	{
+		while (!ca->blobs.empty())
+		{
+			//qDebug() << "Blobs " << ca->blobs.count();
+			Blob * bob = ca->blobs.takeLast();
+			QRect r(bob->x * blobstep, imageHeight*3 + bob->y*blobstep
+					, (bob->x2 - bob->x)*blobstep, (bob->y2 - bob->y)*blobstep);
+			painter.drawRect(r);
+			//qDebug() << "drew " << r;
+			delete bob;
+		}
+	}
 }
 
 void webcamtest::setColor()

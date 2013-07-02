@@ -426,36 +426,87 @@ void CamArray::mainloop()
 			}
 		}
 		
-		
+		findblob();
 		output();
+// 		break;
 	}
 }
 #endif
 inline bool CamArray::white(int x, int y) 
 {
-	return h_c[y*xSize+x] > threshold;
+	return ((unsigned char)h_c[y*xSize+x]) > threshold;
+}
+
+int CamArray::isBlob(int x, int y, Blob * bob, int depth)
+{
+// 	qDebug() << "isBlob " << x << " " << y;
+	if (depth > 2000)
+	{
+		qDebug() << "panic!!!";
+		qDebug() << "Blob at X: " << x*blobstep 
+					   << "  Y: " << y*blobstep
+					   << " depth: " << bob->maxDepth << "value is " << blobMap[x][y] ;
+	}
+	switch (blobMap[x][y])
+	{
+		case no:
+			blobMap[x][y] = visited;
+		case visited:
+			return 0;
+		case yes:
+			blobMap[x][y] = visited;
+	}
+	if (x < bob->x)
+		bob->x = x;
+	if (x > bob->x2)
+		bob->x2 = x;
+	if (y < bob->y)
+		bob->y = y;
+	if (y > bob->y2)
+		bob->y2 = y;
+	if (depth > bob->maxDepth)
+		bob->maxDepth = depth;
+	
+	
+	
+	if (x > 0)
+		isBlob(x-1,y, bob, depth+1);
+	if (x < xSize/blobstep -1)
+		isBlob(x+1,y, bob, depth+1);
+	if (y > 0)
+		isBlob(x,y-1, bob, depth+1);
+	if (y < ySize/blobstep -1)
+		isBlob(x,y+1, bob, depth+1);
+	return 1;
 }
 
 void CamArray::findblob()
 {
-	bool maybeBlobs[xSize/blobstep][ySize/blobstep];
+	Blob * bob;
 	int offset;
 	for (int y = 0; y < ySize / blobstep; y++)
 		for (int x = 0; x < xSize / blobstep; x++)
-			maybeBlobs[x][y] = white(x*blobstep,y*blobstep);
+			blobMap[x][y] = white(x*blobstep,y*blobstep) ? yes : no;
 	
-	for (int y = 1; y < ySize - 1; y++)
-		for (int x = 1; x < xSize - 1; x++)
+	for (int y = 1; y < ySize / blobstep - 1; y++)
+		for (int x = 1; x < xSize /blobstep - 1; x++)
 		{
-			if (!white(x*blobstep, y*blobstep))
+			if ( blobMap[x][y] != yes) 
 				continue;
-
+			bob = new Blob;
+			bob->x = bob->x2 = x;
+			bob->y = bob->y2 = y;
+			bob->maxDepth = 0;
+			isBlob(x,y,bob, 0);
+			if (bob->maxDepth > 5)
+				blobs.append(bob);
+			else
+				delete bob;
+			//qDebug() << "Blob at X: " << bob->x*blobstep << " - " << bob->x2*blobstep
+// 						   << "  Y: " << bob->y*blobstep << " - " << bob->y2*blobstep
+// 						   << " depth: " << bob->maxDepth;
 		}
 	
-		
-		
-		
-		
 }
 
 void CamArray::output()
@@ -507,6 +558,7 @@ void CamArray::output()
 			xOffset2 += xSize2;
 			offset   += xSize*ySize;
 		}
+		
 		break;
 		case 1:
 		int yOffset, xMax, yMax, x, y;
@@ -545,7 +597,7 @@ void CamArray::output()
 				}
 			}
 			break;
-	}	
+	}
 		
 		
 	w->update();
