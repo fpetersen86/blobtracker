@@ -40,7 +40,7 @@ public:
 private:
 	QSemaphore *sem;
 	//host buffers
-	unsigned char *h_a, *h_b, *h_c, *h_d2;
+	unsigned char *h_a, *h_b, *h_c, *h_d;
 	camSettings *h_s;
 	//device buffers
 	unsigned char *d_a, *d_b, *d_c, *d_d;

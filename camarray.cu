@@ -107,7 +107,7 @@ __global__ void median(unsigned char *input,
 	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
 	unsigned char currElement = input[offset + elemID];
 	
-	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + leftNeighb + bottomNeighb) / 5;
+	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + topNeighb + bottomNeighb) / 5;
 }
 
 
@@ -120,40 +120,49 @@ __global__ void stitch(unsigned char *image,
 					   int camWidth,
 					   int camHeight,
 					   int numCams,
-					   int threshold)
+					   int threshold,
+					   int ignoX1,
+					   int ignoX2,
+					   int ignoY1,
+					   int ignoY2
+  					)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
     int elemID = y*width + x;                             // index within linear array
     
-    if(elemID > width * height) return;
-    
-	int val = 0;
-	int usedCams = 0;
-	
-	for (int i = 0; i < numCams; i++)
+    if(x < ignoX1 || x > ignoX2 || y < ignoY1 || y > ignoY2)
 	{
-		int xOffset = settings[i].xOffset;
-		int yOffset = settings[i].yOffset;
-		int offset = i * camWidth * camHeight;
+		output[elemID] = 0;
+	} else {
+		if(elemID > width * height) return;
 		
-		if (x > xOffset && x < (xOffset + camWidth) && y > yOffset && y < (yOffset + camHeight)){
-			val += image[offset - xOffset + x + (-yOffset + y)*camWidth];
- 			//val += 40;
-			usedCams += 1;
+		int val = 0;
+		int usedCams = 0;
+		
+		for (int i = 0; i < numCams; i++)
+		{
+			int xOffset = settings[i].xOffset;
+			int yOffset = settings[i].yOffset;
+			int offset = i * camWidth * camHeight;
+			
+			if (x > xOffset && x < (xOffset + camWidth) && y > yOffset && y < (yOffset + camHeight)){
+				val += image[offset - xOffset + x + (-yOffset + y)*camWidth];
+				//val += 40;
+				usedCams += 1;
+			}
 		}
+		if(usedCams == 0){
+			usedCams++;
+		}
+		
+		if (val / usedCams <= threshold)
+			val = 255;
+		else
+			val = 0;
+		
+		output[elemID] = val;
 	}
-	if(usedCams == 0){
-		usedCams++;
-	}
-	
-	if (val / usedCams <= threshold)
-		val = 255;
-	else
-		val = 0;
-	
-	output[elemID] = val;
-	//output[elemID] = image[elemID + settings[0].xOffset];
 }
 
 
@@ -216,7 +225,7 @@ void CamArray::initBuffers() {
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
 	cudaMallocHost(&h_b, bufferImgSize);
 	cudaMallocHost(&h_c, bufferImgSize);
-	cudaMallocHost(&h_d2, bufferStitchedImg);
+	cudaMallocHost(&h_d, bufferStitchedImg);
 	cudaMallocHost(&h_s, bufferSettings, 0x04);
 	
 	//device buffers
@@ -286,7 +295,7 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
- 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold);
+ 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold, 40, canvX-30, 0, canvY-70);
  		handleCUDAerror(__LINE__);
 		
  		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
@@ -295,7 +304,7 @@ void CamArray::mainloop()
   		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
   		handleCUDAerror(__LINE__);
 		
-		cudaMemcpy( h_d2, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
+		cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
 // 		qDebug() << "-------------- cuda ready --------------";
@@ -503,8 +512,8 @@ void CamArray::findblob()
 				blobs.append(bob);
 			else
 				delete bob;
-			qDebug() << "Blob at X: " << bob->x*blobstep << " - " << bob->x2*blobstep
- 						   << "  Y: " << bob->y*blobstep << " - " << bob->y2*blobstep
+			qDebug() << "Blob at X:" << bob->x*blobstep << "-" << bob->x2*blobstep
+ 						   << "  Y:" << bob->y*blobstep << "-" << bob->y2*blobstep
  						   << " depth: " << bob->maxDepth;
 		}
 	
@@ -593,7 +602,7 @@ void CamArray::output()
 			{
 				for (x = 0; x < canvX; x++)
 				{
-					int val = h_d2[y*canvX+x];
+					int val = h_d[y*canvX+x];
 						w->i.setPixel(x,y, qRgb(val, val, val));
 				}
 			}
@@ -663,7 +672,7 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_c);
 	handleCUDAerror(__LINE__);
-	cudaFreeHost(h_d2);
+	cudaFreeHost(h_d);
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_s);
 	handleCUDAerror(__LINE__);
