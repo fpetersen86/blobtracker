@@ -24,7 +24,6 @@ webcamtest::webcamtest()
 	myColor = QColor("#62b5ff");
 	
 	ca = new CamArray(this, QApplication::arguments().size() - 1);
-	ca->start();
 	QWidget *w = new QWidget(NULL);
 	ui=new Ui_settings();
 	ui->setupUi(w);
@@ -92,6 +91,7 @@ webcamtest::webcamtest()
 	w->setAttribute(Qt::WA_QuitOnClose, false);
 	//w->setAttribute(Qt::WA_DeleteOnClose, true);
 	
+	ca->start();
 	w->show();
 }
 

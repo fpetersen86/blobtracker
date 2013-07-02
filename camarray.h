@@ -36,10 +36,10 @@ public:
 private:
 	QSemaphore *sem;
 	//host buffers
-	char *h_a, *h_b, *h_c;
+	char *h_a, *h_b, *h_c, *h_d;
 	camSettings *h_s;
 	//device buffers
-	char *d_a, *d_b, *d_c;
+	char *d_a, *d_b, *d_c, *d_d;
 	camSettings *d_s;
 	
 	int canvX;
@@ -57,6 +57,7 @@ private:
 	
 	int bufferImgSize;
 	int bufferSettings;
+	int bufferStitchedImg;
 };
 
 #endif // CAMARRAY_H

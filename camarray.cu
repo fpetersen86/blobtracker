@@ -82,36 +82,37 @@ __global__ void rotate(char *image,
 	output[offset + elemID] = image[offset + myY*width + myX];
 }
 
-// __global__ void median(char *input, char *output, int width, int height)
-// {
-// 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
-// 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-//     int elemID = y*width + x;                             // index within linear array
-//     int offset = blockIdx.z * width * height;
-// 
-// 	// compute cells needed for update (neighbors + central element)
-// 	int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
-// 	unsigned char leftNeighb = input[offset + elemID - borderFlag];
-// 	borderFlag = (x < (width - 1));
-// 	unsigned char rightNeighb = input[offset + elemID + borderFlag];
-// 	borderFlag = -(y > 0);									// unary minus turns boolean value into boolean bitwise mask
-// 	unsigned char topNeighb = input[offset + elemID - (borderFlag & width)];	
-// 	borderFlag = -(y < (height - 1));
-// 	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
-// 	unsigned char currElement = input[offset + elemID];
-// 	
-// 	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + leftNeighb + bottomNeighb) / 5;
-// }
-
-
-__global__ void blend(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
+__global__ void median(char *input, char *output, int width, int height)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width2 + x;                             // index within linear array
+    int elemID = y*width + x;                             // index within linear array
     int offset = blockIdx.z * width * height;
+
+	// compute cells needed for update (neighbors + central element)
+	int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
+	unsigned char leftNeighb = input[offset + elemID - borderFlag];
+	borderFlag = (x < (width - 1));
+	unsigned char rightNeighb = input[offset + elemID + borderFlag];
+	borderFlag = -(y > 0);									// unary minus turns boolean value into boolean bitwise mask
+	unsigned char topNeighb = input[offset + elemID - (borderFlag & width)];	
+	borderFlag = -(y < (height - 1));
+	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
+	unsigned char currElement = input[offset + elemID];
+	
+	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + leftNeighb + bottomNeighb) / 5;
+}
+
+
+__global__ void stitch(char *image, char *output, int width, int height)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int elemID = y*width + x;                             // index within linear array
     
-	output[elemID + offset] = image[elemID + offset];
+    if(elemID > width * height) return;
+    
+	output[elemID] = image[elemID];
 }
 
 
@@ -145,7 +146,8 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 	
 	bufferImgSize = xSize * ySize * numCams * sizeof(char);
 	bufferSettings = numCams * sizeof(camSettings);
-	threshold = 20;
+	bufferStitchedImg = canvX * canvY * sizeof(char);
+	//threshold = 20;
 	
 	initBuffers();
 	
@@ -168,12 +170,14 @@ void CamArray::initBuffers() {
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
 	cudaMallocHost(&h_b, bufferImgSize);
 	cudaMallocHost(&h_c, bufferImgSize);
+	cudaMallocHost(&h_d, bufferStitchedImg);
 	cudaMallocHost(&h_s, bufferSettings, 0x04);
 	
 	//device buffers
 	cudaMalloc((void**) &d_a, bufferImgSize);
 	cudaMalloc((void**) &d_b, bufferImgSize);
 	cudaMalloc((void**) &d_c, bufferImgSize);
+	cudaMalloc((void**) &d_d, bufferStitchedImg);
 	cudaMalloc((void**) &d_s, bufferSettings);
 }
 #else //NOCUDA
@@ -206,6 +210,12 @@ void CamArray::mainloop()
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y, numCams);
 	
+	dim3 cudaBlockSize2(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
+	dim3 cudaGridSize2(canvX/cudaBlockSize.x, canvY/cudaBlockSize.y);
+	
+	qDebug("x %d   y %d", canvX, canvY);
+	qDebug("grid: %d %d   block: %d %d", cudaGridSize2.x, cudaGridSize2.y, cudaBlockSize2.x, cudaBlockSize2.y);
+	
 // 	cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
 // 	handleCUDAerror(__LINE__);
 	
@@ -225,8 +235,8 @@ void CamArray::mainloop()
 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
 		handleCUDAerror(__LINE__);
 		
-		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
-		handleCUDAerror(__LINE__);
+// 		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
+// 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
@@ -234,10 +244,16 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
-		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
+		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, canvX, canvY);
 		handleCUDAerror(__LINE__);
 		
-		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+// 		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
+// 		handleCUDAerror(__LINE__);
+// 		
+// 		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+// 		handleCUDAerror(__LINE__);
+		
+		cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
 		output();
@@ -444,7 +460,14 @@ void CamArray::output()
 		}
 		break;
 		case 2:
-			//here be code ... someday ...
+			for (y = 0; y < canvY; y++)
+			{
+				for (x = 0; x < canvX; x++)
+				{
+					int val = h_d[y*xSize+x];
+						w->i.setPixel(x,y, qRgb(val, val, val));
+				}
+			}
 			break;
 	}	
 		
