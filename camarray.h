@@ -1,6 +1,7 @@
 #ifndef CAMARRAY_H
 #define CAMARRAY_H
 
+#include "global.h"
 #include "camera.h"
 #include <Qt/QtCore>
 //#include "webcamtest.h"
@@ -12,8 +13,9 @@ struct Blob
 {
 	int x;
 	int y;
-	int w;
-	int h;
+	int x2;
+	int y2;
+	int maxDepth;
 };
 
 class CamArray : public QThread
@@ -32,6 +34,8 @@ public:
 	bool stopped;
 	void stop();
 	void loadFiles();
+	enum Direction {left, down, right};
+	enum FieldState {no = 0, yes = 1, visited = 2};
 	
 private:
 	QSemaphore *sem;
@@ -57,6 +61,10 @@ private:
 	
 	int bufferImgSize;
 	int bufferSettings;
+	FieldState blobMap[xSize/blobstep][ySize/blobstep];
+	QList<Blob*> blobs;
+protected:
+    int isBlob(int x, int y, Blob* bob, int depth);
 };
 
 #endif // CAMARRAY_H
