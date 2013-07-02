@@ -295,7 +295,7 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
- 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold, 40, canvX-30, 0, canvY-70);
+ 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold, canvOffX, canvOffX2, canvOffY, canvOffY2);
  		handleCUDAerror(__LINE__);
 		
  		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
