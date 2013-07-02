@@ -99,7 +99,7 @@ __global__ void blend(char *image, char *output, int width, int height, int widt
 
 CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {
-	calibrating = false;
+	viewmode = false;
 	w = p; // All hail the mighty alphabet ;)
 	//initialise cams
 	QStringList camList;
@@ -315,16 +315,39 @@ void CamArray::mainloop()
 	}
 }
 #endif
+inline bool CamArray::white(int x, int y) 
+{
+	return h_c[y*xSize+x] > threshold;
+}
+
 void CamArray::findblob()
 {
+	bool maybeBlobs[xSize/blobstep][ySize/blobstep];
+	int offset;
+	for (int y = 0; y < ySize / blobstep; y++)
+		for (int x = 0; x < xSize / blobstep; x++)
+			maybeBlobs[x][y] = white(x*blobstep,y*blobstep);
 	
+	for (int y = 1; y < ySize - 1; y++)
+		for (int x = 1; x < xSize - 1; x++)
+		{
+			if (!white(x*blobstep, y*blobstep))
+				continue;
+
+		}
 	
+		
+		
+		
+		
 }
 
 void CamArray::output()
 {
 	int offset = 0, xOffset = 0, xOffset2 = 0;
-	if (!calibrating)
+	switch (viewmode)
+	{
+		case 0:
 		for( int n = 0; n < numCams; n++)
 		{
 			for (int y = 0; y < ySize; y++)
@@ -368,8 +391,8 @@ void CamArray::output()
 			xOffset2 += xSize2;
 			offset   += xSize*ySize;
 		}
-	else
-	{
+		break;
+		case 1:
 		int yOffset, xMax, yMax, x, y;
 		w->i.fill(Qt::black);
 		
@@ -395,6 +418,10 @@ void CamArray::output()
 			xOffset  += xSize;
 			offset   += xSize*ySize;
 		}
+		break;
+		case 2:
+			//here be code ... someday ...
+			break;
 	}	
 		
 		
