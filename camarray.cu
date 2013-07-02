@@ -82,6 +82,27 @@ __global__ void rotate(char *image,
 	output[offset + elemID] = image[offset + myY*width + myX];
 }
 
+// __global__ void median(char *input, char *output, int width, int height)
+// {
+// 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+// 	int y = blockIdx.y * blockDim.y + threadIdx.y;
+//     int elemID = y*width + x;                             // index within linear array
+//     int offset = blockIdx.z * width * height;
+// 
+// 	// compute cells needed for update (neighbors + central element)
+// 	int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
+// 	unsigned char leftNeighb = input[offset + elemID - borderFlag];
+// 	borderFlag = (x < (width - 1));
+// 	unsigned char rightNeighb = input[offset + elemID + borderFlag];
+// 	borderFlag = -(y > 0);									// unary minus turns boolean value into boolean bitwise mask
+// 	unsigned char topNeighb = input[offset + elemID - (borderFlag & width)];	
+// 	borderFlag = -(y < (height - 1));
+// 	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
+// 	unsigned char currElement = input[offset + elemID];
+// 	
+// 	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + leftNeighb + bottomNeighb) / 5;
+// }
+
 
 __global__ void blend(char *image, char *output, int width, int height, int width2, int height2, float strength, float zoom)
 {
@@ -202,6 +223,9 @@ void CamArray::mainloop()
 		handleCUDAerror(__LINE__);
 		
 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
+		handleCUDAerror(__LINE__);
+		
+		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
