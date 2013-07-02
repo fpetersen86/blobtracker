@@ -81,7 +81,6 @@ webcamtest::webcamtest()
 	ui->threshSlider->setValue(s.value("threshold").toInt());
 	ui->threshBox->setValue(s.value("threshold").toInt());
 	
-	
 	for(int i = 0; i < ca->numCams; i++)
 	{
 		ui->verticalLayout->addWidget(new CamSettingsUi(ca->cams[i], this));
@@ -160,7 +159,7 @@ void webcamtest::paintEvent(QPaintEvent* e)
 		for (int y = winY/2; y < winY; y+= gridHeight)
 			painter.drawLine(0, y, imageWidth*ca->numCams, y);
 	}
-	if (ca->viewmode == 0)
+	if (ca->viewmode == 2)
 	{
 		while (!ca->blobs.empty())
 		{

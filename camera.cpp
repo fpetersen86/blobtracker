@@ -190,6 +190,7 @@ void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 		}
 		offset += xSize;
 	}
+// 	qDebug("cam %d done", id);
 	sem->release(1);
 }
 

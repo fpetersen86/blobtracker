@@ -162,6 +162,10 @@ __global__ void stitch(unsigned char *image,
 
 CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {
+	QSettings s;
+	canvX = s.value("canvX", 640).toInt();
+	canvY = s.value("canvY", 480).toInt();
+	
 	viewmode = false;
 	w = p; // All hail the mighty alphabet ;)
 	//initialise cams
@@ -187,6 +191,7 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 	
 	bufferImgSize = xSize * ySize * numCams * sizeof(char);
 	bufferSettings = numCams * sizeof(camSettings);
+	qDebug("buffer   x: %d   y: %d", canvX, canvY);
 	bufferStitchedImg = canvX * canvY * sizeof(char);
 	//threshold = 20;
 	
@@ -211,7 +216,7 @@ void CamArray::initBuffers() {
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
 	cudaMallocHost(&h_b, bufferImgSize);
 	cudaMallocHost(&h_c, bufferImgSize);
-	cudaMallocHost(&h_d, bufferStitchedImg);
+	cudaMallocHost(&h_d2, bufferStitchedImg);
 	cudaMallocHost(&h_s, bufferSettings, 0x04);
 	
 	//device buffers
@@ -263,14 +268,9 @@ void CamArray::mainloop()
 	
 	while(!stopped)
 	{
-		if (!imgTest){
-			sem->acquire(numCams);
-		}
-			else
-		{
-			qDebug() << "frame dropped";
-			msleep(8);
-		}
+		sem->acquire(numCams);
+// 		qDebug() << "-------------- collected --------------";
+		
 		cudaMemcpy( d_a, h_a, bufferImgSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
@@ -286,20 +286,22 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
-		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold);
-		handleCUDAerror(__LINE__);
-		
-// 		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
-// 		handleCUDAerror(__LINE__);
-// 		
- 		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+ 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold);
  		handleCUDAerror(__LINE__);
 		
-		cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
+ 		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
+ 		handleCUDAerror(__LINE__);
+ 		
+  		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+  		handleCUDAerror(__LINE__);
+		
+		cudaMemcpy( h_d2, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
+// 		qDebug() << "-------------- cuda ready --------------";
 		
-		output();
+		findblob();
+ 		output();
 	}
 }
 
@@ -440,10 +442,9 @@ inline bool CamArray::white(int x, int y)
 int CamArray::isBlob(int x, int y, Blob * bob, int depth)
 {
 // 	qDebug() << "isBlob " << x << " " << y;
-	if (depth > 2000)
+	if (depth > 3000)
 	{
-		qDebug() << "panic!!!";
-		qDebug() << "Blob at X: " << x*blobstep 
+		qDebug() << "panic!!!\nBlob at X: " << x*blobstep 
 					   << "  Y: " << y*blobstep
 					   << " depth: " << bob->maxDepth << "value is " << blobMap[x][y] ;
 	}
@@ -502,9 +503,9 @@ void CamArray::findblob()
 				blobs.append(bob);
 			else
 				delete bob;
-			//qDebug() << "Blob at X: " << bob->x*blobstep << " - " << bob->x2*blobstep
-// 						   << "  Y: " << bob->y*blobstep << " - " << bob->y2*blobstep
-// 						   << " depth: " << bob->maxDepth;
+			qDebug() << "Blob at X: " << bob->x*blobstep << " - " << bob->x2*blobstep
+ 						   << "  Y: " << bob->y*blobstep << " - " << bob->y2*blobstep
+ 						   << " depth: " << bob->maxDepth;
 		}
 	
 }
@@ -592,7 +593,7 @@ void CamArray::output()
 			{
 				for (x = 0; x < canvX; x++)
 				{
-					int val = h_d[y*canvX+x];
+					int val = h_d2[y*canvX+x];
 						w->i.setPixel(x,y, qRgb(val, val, val));
 				}
 			}
@@ -662,7 +663,7 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_c);
 	handleCUDAerror(__LINE__);
-	cudaFreeHost(h_d);
+	cudaFreeHost(h_d2);
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_s);
 	handleCUDAerror(__LINE__);

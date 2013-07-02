@@ -40,7 +40,7 @@ public:
 private:
 	QSemaphore *sem;
 	//host buffers
-	unsigned char *h_a, *h_b, *h_c, *h_d;
+	unsigned char *h_a, *h_b, *h_c, *h_d2;
 	camSettings *h_s;
 	//device buffers
 	unsigned char *d_a, *d_b, *d_c, *d_d;
@@ -62,6 +62,8 @@ private:
 	int bufferImgSize;
 	int bufferSettings;
 	int bufferStitchedImg;
+	
+	
 	FieldState blobMap[xSize/blobstep][ySize/blobstep];
 	QList<Blob*> blobs;
 protected:
