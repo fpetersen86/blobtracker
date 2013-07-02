@@ -8,68 +8,17 @@
 #include <cuda.h>
 
 
-//GPU Kernel
-__global__ void find_features(float *feature_values, int* feature_positions, const int width, const int height, const int eta, const int beta_2) 
-{
-    const int x = blockIdx.x * beta_2;
-    const int y = blockIdx.y*beta_2;    
-    const int offset = (blockIdx.x + blockIdx.y*gridDim.x)*eta;
-    const int double_offset = offset*2;
-    int min_pos;
-    float min_value = 1.0f;
-    float value; 
-    
-    for(int i = 0; i<eta; i++)
-    {        
-        feature_positions[double_offset + i*2] = x+i;
-        feature_positions[double_offset + i*2 + 1] = y;
-        value = feature_values[offset + i] = tex2D(float1_tex, x+i, y).x;
-             
-        if(value <= min_value)
-        {        
-            min_value = value;
-            min_pos = i;
-        }
-    }    
-    
-    if( y <= height - beta_2 && x< width - beta_2)
-    {            
-        for(int j = 0; j<beta_2; j++)
-            for(int i = 0; i<beta_2; i++)
-            {        
-                value = tex2D(float1_tex, float(x+i) + 0.5f, float(y+j) + 0.5f).x;
-                if(value > min_value)
-                {
-                    feature_positions[double_offset + min_pos*2] = x+i;
-                    feature_positions[double_offset + min_pos*2 + 1] = y+j;
-                    feature_values[offset + min_pos] = value;
-                    min_pos = find_min_pos(feature_values, offset, eta);
-                    min_value = feature_values[offset + min_pos];
-                }
-            }
-
-        for(int i = 0; i<eta; i++)
-        {
-            if(feature_values[offset + i] == 0.0f)
-            {
-                feature_positions[double_offset + i*2] = 0;
-                feature_positions[double_offset + i*2 + 1] = 0;
-            }
-        }
-    }
-}
 
 
 
-__global__ void lensCorrection(char *image,
-							   char *output,
+__global__ void lensCorrection(unsigned char *image,
+							   unsigned char *output,
 							   int width,
 							   int height,
 							   int width2,
 							   int height2,
 							   float strength,
-							   float zoom
-							  )
+							   float zoom)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -102,12 +51,13 @@ __global__ void lensCorrection(char *image,
 	output[elemID + offset] = image[sourceY*width + sourceX + offset];
 }
 
-__global__ void rotate(char *image,
-					   char *output,
+
+
+__global__ void rotate(unsigned char *image,
+					   unsigned char *output,
 					   camSettings *settings,
 					   int width,
-					   int height
-					  )
+					   int height)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -134,7 +84,12 @@ __global__ void rotate(char *image,
 	output[offset + elemID] = image[offset + myY*width + myX];
 }
 
-__global__ void median(char *input, char *output, int width, int height)
+
+
+__global__ void median(unsigned char *input,
+					   unsigned char *output,
+					   int width,
+					   int height)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -156,7 +111,16 @@ __global__ void median(char *input, char *output, int width, int height)
 }
 
 
-__global__ void stitch(char *image, char *output, int width, int height)
+
+__global__ void stitch(unsigned char *image,
+					   unsigned char *output,
+					   camSettings *settings,
+					   int width,
+					   int height,
+					   int camWidth,
+					   int camHeight,
+					   int numCams,
+					   int threshold)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -164,7 +128,32 @@ __global__ void stitch(char *image, char *output, int width, int height)
     
     if(elemID > width * height) return;
     
-	output[elemID] = image[elemID];
+	int val = 0;
+	int usedCams = 0;
+	
+	for (int i = 0; i < numCams; i++)
+	{
+		int xOffset = settings[i].xOffset;
+		int yOffset = settings[i].yOffset;
+		int offset = i * camWidth * camHeight;
+		
+		if (x > xOffset && x < (xOffset + camWidth) && y > yOffset && y < (yOffset + camHeight)){
+			val += image[offset - xOffset + x + (-yOffset + y)*camWidth];
+ 			//val += 40;
+			usedCams += 1;
+		}
+	}
+	if(usedCams == 0){
+		usedCams++;
+	}
+	
+	if (val / usedCams <= threshold)
+		val = 255;
+	else
+		val = 0;
+	
+	output[elemID] = val;
+	//output[elemID] = image[elemID + settings[0].xOffset];
 }
 
 
@@ -234,9 +223,10 @@ void CamArray::initBuffers() {
 }
 #else //NOCUDA
 void CamArray::initBuffers() {
-	h_a = reinterpret_cast<char*>(malloc(bufferImgSize));
-	h_b = reinterpret_cast<char*>(malloc(bufferImgSize));
-	h_c = reinterpret_cast<char*>(malloc(bufferImgSize));
+	h_a = reinterpret_cast<unsigned char*>(malloc(bufferImgSize));
+	h_b = reinterpret_cast<unsigned char*>(malloc(bufferImgSize));
+	h_c = reinterpret_cast<unsigned char*>(malloc(bufferImgSize));
+	h_d = reinterpret_cast<unsigned char*>(malloc(bufferStitchedImg));
 	h_s = reinterpret_cast<camSettings*>(malloc(bufferSettings));
 }
 #endif
@@ -263,7 +253,7 @@ void CamArray::mainloop()
 	dim3 cudaGridSize(xSize2/cudaBlockSize.x, ySize2/cudaBlockSize.y, numCams);
 	
 	dim3 cudaBlockSize2(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
-	dim3 cudaGridSize2(canvX/cudaBlockSize.x, canvY/cudaBlockSize.y);
+	dim3 cudaGridSize2(canvX/cudaBlockSize2.x, canvY/cudaBlockSize2.y);
 	
 	qDebug("x %d   y %d", canvX, canvY);
 	qDebug("grid: %d %d   block: %d %d", cudaGridSize2.x, cudaGridSize2.y, cudaBlockSize2.x, cudaBlockSize2.y);
@@ -296,53 +286,18 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
-		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, canvX, canvY);
+		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold);
 		handleCUDAerror(__LINE__);
 		
 // 		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
 // 		handleCUDAerror(__LINE__);
 // 		
-// 		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
-// 		handleCUDAerror(__LINE__);
+ 		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+ 		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
 		handleCUDAerror(__LINE__);
 		
-		//test code - what does it do?
-		int beta_2 = 8; //???
-		int eta 20; //???
-		float* d_feature_values;
-		int *d_feature_positions;
-		float* h_feature_values;
-		int *h_feature_positions;
-		int data_width = (canvX/beta_2);
-		int data_height = (canvY/beta_2);
-		int feature_nb = data_width*data_height*eta;
-
-		dim3 extraction_block (1, 1, 1);
-		dim3 extraction_grid (_width/beta_2, _height/beta_2, 1);
-
-		cudaMalloc((void**)&d_feature_positions, 2*feature_nb*sizeof(int));
-		cudaMalloc((void**)&d_feature_values, feature_nb*sizeof(float));
-		
-		cudaMallocHost((void**)&h_feature_positions, 2*feature_nb*sizeof(int));
-		cudaMallocHost((void**)&h_feature_values, feature_nb*sizeof(float));
-		
-		find_features<<<cudaGridSize2,cudaBlockSize2>>>(d_feature_values, d_feature_positions, canvX, canvY, eta, beta_2);
-		
-		cudaMemcpy( h_feature_positions, d_feature_positions, 2*feature_nb*sizeof(int), cudaMemcpyDeviceToHost );
-		cudaMemcpy( h_feature_values, d_feature_values, feature_nb*sizeof(float), cudaMemcpyDeviceToHost );
-		
-		for (int i = 0; i < feature_nb; i++)
-		{
-			qDebug() << "blob " << i << " @ x " << h_feature_positions[i*2] << " y " 
-					 << h_feature_positions[i*2+1] << " with value = " << h_feature_values[i];
-		}
-		cudaFree(d_feature_positions);
-		cudaFree(d_feature_values);
-		cudaFreeHost(h_feature_positions);
-		cudaFreeHost(h_feature_values);
-		//end test
 		
 		output();
 	}
@@ -436,6 +391,39 @@ void CamArray::mainloop()
 				}
 			}
 			offset += ySize*xSize;
+		}
+		
+		//stitch
+		for (int y = 0; y < canvY; y++)
+		{
+			ydiff = yCenter - y;
+			for (int x = 0; x < canvX; x++)
+			{
+				int val = 0;
+				int usedCams = 0;
+				
+				for (int i = 0; i < numCams; i++)
+				{
+					int xOffset = h_s[i].xOffset;
+					int yOffset = h_s[i].yOffset;
+					int offset = i * xSize * ySize;
+					
+					if (x > xOffset && x <= (xOffset + xSize) && y > yOffset && y <= (yOffset + ySize)){
+						val += h_c[offset - xOffset + x + (-yOffset + y)*xSize];
+						//val += 40;
+						usedCams++;
+					}
+				}
+// 				if(usedCams > 1){
+// 					qDebug("val: %d   cams: %d \n", val, usedCams);
+// 				}
+				
+				if(usedCams == 0){
+					usedCams++;
+				}
+				
+				h_d[y*canvX + x] = val / usedCams;
+			}
 		}
 		
 		
@@ -552,7 +540,7 @@ void CamArray::output()
 			{
 				for (x = 0; x < canvX; x++)
 				{
-					int val = h_d[y*xSize+x];
+					int val = h_d[y*canvX+x];
 						w->i.setPixel(x,y, qRgb(val, val, val));
 				}
 			}
@@ -612,6 +600,8 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFree(d_c);
 	handleCUDAerror(__LINE__);
+	cudaFree(d_d);
+	handleCUDAerror(__LINE__);
 	cudaFree(d_s);
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_a);
@@ -620,12 +610,15 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_c);
 	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_d);
+	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_s);
 	handleCUDAerror(__LINE__);
 #else
 	free(h_a);
 	free(h_b);
 	free(h_c);
+	free(h_d);
 	free(h_s);
 #endif
 	qDebug("Memory deallocated successfully\n");

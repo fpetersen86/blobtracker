@@ -15,7 +15,7 @@ const int xSize = 320;
 const int ySize = 240;
 const int framerate = 125;
 
-Camera::Camera(const char* device, const int id, QSemaphore* sem, char* myBuffer, camSettings* cset) : QThread(NULL)
+Camera::Camera(const char* device, const int id, QSemaphore* sem, unsigned char* myBuffer, camSettings* cset) : QThread(NULL)
 {
 	settings = cset;
 	
