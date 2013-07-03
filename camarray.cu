@@ -295,6 +295,54 @@ __global__ void findBlobs_2(yRange *input,
 
 #endif
 
+void CamArray::findBlobs_3()
+{
+	QList<Blob*> bb;
+	Blob *bob;
+	
+	for (int i=0; i < canvX; i++)
+	{
+		int j = 0;
+		while(1)
+		{
+			if (h_xyRanges[j].y2 == 0)
+				break;
+			bob = new Blob;
+			bob->x = h_xyRanges[j].x1;
+			bob->x2 = h_xyRanges[j].x2;
+			bob->y = h_xyRanges[j].y1;
+			bob->y2 = h_xyRanges[j].y2;
+			bob->maxDepth = 50;
+		}
+	}
+	
+	for (int i=0; i < bb.size(); i++)
+	{
+		for (int j=i+1; j < bb.size();)
+		{
+			if (mergeBlobs(bb.at(i), bb.at(j)))
+			{
+				Blob *a = bb.at(i), *b = bb.at(j);
+				a->x = min(a->x, b->x);
+				a->x2 = max(a->x2, b->x2);
+				a->y = min(a->y, b->y);
+				a->y2 = max(a->y2, b->y2);
+				bb.removeAt(j);
+				continue;
+			}
+			j++;
+		}
+	}
+	
+	blobs = bb;
+}
+
+bool CamArray::mergeBlobs(Blob *bob, Blob* notBob)
+{
+	QRect a(bob->x, bob->y, bob->x2-bob->x, bob->y2 - bob->y);
+	QRect b(notBob->x -1, notBob->y-1, notBob->x2-notBob->x+1, notBob->y2 - notBob->y+1);
+	return a.intersects(b);
+}
 
 CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {

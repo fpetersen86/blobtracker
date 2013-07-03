@@ -52,6 +52,16 @@ public:
 	bool stopped;
 	void stop();
 	void loadFiles();
+	int min(int a, int b) {
+		if(a < b)
+			return a;
+		return b;
+	};
+	int max(int a, int b) {
+		if(a > b)
+			return a;
+		return b;
+	};
 	
 private:
 	QSemaphore *sem;
@@ -65,6 +75,7 @@ private:
 	bool *d_blobMap;
 	yRange *d_yRanges;
 	xyRange *d_xyRanges;
+	xyRange *h_xyRanges;
 	
 	int canvX;
 	int canvY;
@@ -94,6 +105,8 @@ protected:
 	void findblob();
     int isBlob(int x, int y, Blob* bob, int depth);
 	void trackBlobs();
+	void findBlobs_3();
+	bool mergeBlobs(Blob *bob, Blob* notBob);
 };
 
 #endif // CAMARRAY_H
