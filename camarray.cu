@@ -222,22 +222,60 @@ __global__ void findBlobs_2(yRange *input,
 	int countRight = x * height + height / 2;
 	
 	int counter = x * height;
+	int yMin;
+	bool merged = false;
 	
 	while(true)
 	{
+		if(input[countRight].y2 == input[countLeft].y2 == 0)
+			break;
 		if(	input[countLeft].y1 < input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1 || 
 			input[countLeft].y2 > input[countRight].y1 && input[countLeft].y2 <= input[countRight].y2 )
 		{
-			output[counter].y1 = fminf(input[countLeft].y1, input[countRight].y1);
-			output[counter].y2 = fmaxf(input[countLeft].y2, input[countRight].y2);
+			merged = true;
+			yMin = fminf(input[countLeft].y1, input[countRight].y1);
 			output[counter].x1 = x*2;
 			output[counter].x2 = x*2+1;
 			
-			
-			
-			
+			if (input[countLeft].y2 > input[countRight+1].y1)
+			{
+				input[countRight+1].y1 = yMin;
+				countRight++;
+				continue;
+			}
+			if (input[countRight].y2 > input[countLeft+1].y1)
+			{
+				input[countLeft+1].y1 = yMin;
+				countLeft++;
+				continue;
+			}
+		}
+		else if( input[countLeft].y2 > input[countRight].y2 || !input[countRight].y2)
+		{
+			output[counter].y1 = input[countRight].y1;
+			output[counter].y2 = input[countRight].y2;
+			if (!merged)
+			{
+				output[counter].x1 = output[counter].x2 = x*2+1;
+			}
+			countRight++;
+			counter++;
+			merged = false;
+		}
+		else if (!input[countLeft].y2)
+		{
+			output[counter].y1 = input[countLeft].y1;
+			output[counter].y2 = input[countLeft].y2;
+			if (!merged)
+			{
+				output[counter].x1 = output[counter].x2 = x*2;
+			}
+			countLeft++;
+			counter++;
+			merged = false;
 		}
 	}
+	output[counter].y2 = 0;
 }
 
 #endif
