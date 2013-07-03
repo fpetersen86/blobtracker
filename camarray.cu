@@ -191,7 +191,8 @@ __global__ void findBlobs_1(unsigned char *input,
 	{
 		if(input[i] == 255)
 		{
-			if(!b){
+			if(!b)
+			{
 				b = true;
 				start = i;
 			} else {
@@ -199,13 +200,21 @@ __global__ void findBlobs_1(unsigned char *input,
 			}
 			
 		} else {
-			if(b){
+			if(b)
+			{
 				b = false;
 				output[counter].y1 = start;
 				output[counter].y2 = end;
 				counter++;
 			}
 		}
+	}
+	if(b)
+	{
+		b = false;
+		output[counter].y1 = start;
+		output[counter].y2 = end;
+		counter++;
 	}
 	output[counter].y2 = 0;
 }
@@ -229,26 +238,32 @@ __global__ void findBlobs_2(yRange *input,
 	{
 		if(input[countRight].y2 == input[countLeft].y2 == 0)
 			break;
-		if(	input[countLeft].y1 < input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1 || 
-			input[countLeft].y2 > input[countRight].y1 && input[countLeft].y2 <= input[countRight].y2 )
+		if(	input[countLeft].y1 <= input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1 || 
+			input[countLeft].y2 >= input[countRight].y1 && input[countLeft].y2 <= input[countRight].y2 ||
+			input[countLeft].y2 >= input[countRight].y2 && input[countLeft].y1 <= input[countRight].y1 ||
+			input[countLeft].y2 <= input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1)
 		{
 			merged = true;
 			yMin = fminf(input[countLeft].y1, input[countRight].y1);
 			output[counter].x1 = x*2;
 			output[counter].x2 = x*2+1;
 			
-			if (input[countLeft].y2 > input[countRight+1].y1)
+			if (input[countLeft].y2 > input[countRight+1].y1 && input[countRight+1].y2 != 0)
 			{
 				input[countRight+1].y1 = yMin;
 				countRight++;
 				continue;
 			}
-			if (input[countRight].y2 > input[countLeft+1].y1)
+			if (input[countRight].y2 > input[countLeft+1].y1 && input[countLeft+1].y2 != 0)
 			{
 				input[countLeft+1].y1 = yMin;
 				countLeft++;
 				continue;
 			}
+			merged = false;
+			countLeft++;
+			countRight++;
+			counter++;
 		}
 		else if( input[countLeft].y2 > input[countRight].y2 || !input[countRight].y2)
 		{
@@ -335,7 +350,7 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 void CamArray::initBuffers() {
 	int fieldStateSize = canvY * canvX * sizeof(bool);
 	int yRangeSize = canvY * canvX * sizeof(yRange) / 2;
-	int xyRangeSize = canvY * canvX * sizeof(xyRange) / 2;
+	int xyRangeSize = canvY * canvX * sizeof(xyRange);
 	
 	//host buffers
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
@@ -354,7 +369,7 @@ void CamArray::initBuffers() {
 	cudaMalloc((void**) &d_s, bufferSettings);
 	cudaMalloc((void**) &d_blobMap, fieldStateSize);
 	cudaMalloc((void**) &d_yRanges, yRangeSize);
-	cudaMalloc((void**) &d_yRanges, xyRangeSize);
+	cudaMalloc((void**) &d_xyRanges, xyRangeSize);
 }
 #else //NOCUDA
 void CamArray::initBuffers() {
@@ -439,11 +454,11 @@ void CamArray::mainloop()
 			
 			
 		
-			findBlobs_1;<<<cudaGridSize3, cudaBlockSize3>>>(d_d, d_yRanges, canvX, canvY);
+			findBlobs_1<<<cudaGridSize3, cudaBlockSize3>>>(d_d, d_yRanges, canvX, canvY);
 			handleCUDAerror(__LINE__);
 			
-// 			findBlobs_2;<<<cudaGridSize3, cudaBlockSize3>>>(d_yRanges, d_xyRanges, canvX, canvY);
-// 			handleCUDAerror(__LINE__);
+			findBlobs_2<<<cudaGridSize3, cudaBlockSize3>>>(d_yRanges, d_xyRanges, canvX, canvY);
+			handleCUDAerror(__LINE__);
 			
 			findblob();
 			trackBlobs();

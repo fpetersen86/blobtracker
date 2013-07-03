@@ -3,7 +3,6 @@
 
 #include "global.h"
 #include "camera.h"
-#include "../opencv/modules/ocl/src/opencl/imgproc_canny.cl"
 #include <Qt/QtCore>
 //#include "webcamtest.h"
 
