@@ -301,18 +301,29 @@ void CamArray::findBlobs_3()
 	Blob *bob;
 	
 	for (int i=0; i < canvX; i++)
+		for (int j=0; j < 1; j++)
+			if (h_xyRanges[i*canvY+j].y2 != 0)
+				qDebug(" x %d %d %d", i, j, h_xyRanges[i*canvY+j].y2);
+			
+	
+	for (int i=0; i < canvX; i++)
 	{
 		int j = 0;
 		while(1)
 		{
-			if (h_xyRanges[j].y2 == 0)
+			if (h_xyRanges[i*canvY+j].y2 == 0)
+			{
 				break;
+			}
 			bob = new Blob;
-			bob->x = h_xyRanges[j].x1;
-			bob->x2 = h_xyRanges[j].x2;
-			bob->y = h_xyRanges[j].y1;
-			bob->y2 = h_xyRanges[j].y2;
+			bob->x = h_xyRanges[i*canvY+j].x1;
+			bob->x2 = h_xyRanges[i*canvY+j].x2;
+			bob->y = h_xyRanges[i*canvY+j].y1;
+			bob->y2 = h_xyRanges[i*canvY+j].y2;
 			bob->maxDepth = 50;
+			bb.append(bob);
+			j++;
+			qDebug() << "bob";
 		}
 	}
 	
@@ -398,7 +409,7 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 void CamArray::initBuffers() {
 	int fieldStateSize = canvY * canvX * sizeof(bool);
 	int yRangeSize = canvY * canvX * sizeof(yRange) / 2;
-	int xyRangeSize = canvY * canvX * sizeof(xyRange);
+	xyRangeSize = canvY * canvX * sizeof(xyRange);
 	
 	//host buffers
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
@@ -407,6 +418,7 @@ void CamArray::initBuffers() {
 	cudaMallocHost(&h_d, bufferStitchedImg);
 	cudaMallocHost(&h_s, bufferSettings, 0x04);
 	cudaMallocHost(&h_blobMap, fieldStateSize);
+	cudaMallocHost(&h_xyRanges, xyRangeSize);
 	
 	
 	//device buffers
@@ -508,7 +520,11 @@ void CamArray::mainloop()
 			findBlobs_2<<<cudaGridSize3, cudaBlockSize3>>>(d_yRanges, d_xyRanges, canvX, canvY);
 			handleCUDAerror(__LINE__);
 			
-			findblob();
+			cudaMemcpy( h_xyRanges, d_xyRanges, xyRangeSize, cudaMemcpyDeviceToHost );
+			handleCUDAerror(__LINE__);
+			
+			findBlobs_3();
+			//findblob();
 			trackBlobs();
 		}
 // 		qDebug() << "-------------- cuda ready --------------";

@@ -96,6 +96,7 @@ private:
 	int bufferImgSize;
 	int bufferSettings;
 	int bufferStitchedImg;
+	int xyRangeSize;
 	
 	
 	//FieldState blobMap[xSize/blobstep][ySize/blobstep];
