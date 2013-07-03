@@ -55,6 +55,8 @@ webcamtest::webcamtest()
 	connect(ui->canvOffY2spinBox, SIGNAL(valueChanged(int)),
 			this, SLOT(setCanvOffY2(int)));
 	
+	ui->viewModeComboBox->setCurrentIndex(defaultMode);
+	
 	if(imgTestMode) 
 	{
 		connect(ui->lcStrengthSpinBox, SIGNAL(valueChanged(double)),
@@ -180,15 +182,20 @@ void webcamtest::paintEvent(QPaintEvent* e)
 	}
 	if (ca->viewmode == 2)
 	{
-		while (!ca->blobs.empty())
+		myPen.setWidth(2);
+		foreach(Blob *bob, ca->blobs2)
 		{
 			//qDebug() << "Blobs " << ca->blobs.count();
-			Blob * bob = ca->blobs.takeLast();
-			QRect r(bob->x * blobstep, imageHeight*3 + bob->y*blobstep
-					, (bob->x2 - bob->x)*blobstep, (bob->y2 - bob->y)*blobstep);
+			QRect r(bob->x * blobstep, bob->y*blobstep,
+					(bob->x2 - bob->x)*blobstep, (bob->y2 - bob->y)*blobstep);
+			//qDebug() << bob->color;
+			myPen.setColor(bob->color);
+			myBrush.setColor(bob->color);
+			painter.setPen(myPen);
+			painter.setBrush(myBrush);
 			painter.drawRect(r);
 			//qDebug() << "drew " << r;
-			delete bob;
+			//delete bob;
 		}
 	}
 }

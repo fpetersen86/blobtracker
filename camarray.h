@@ -3,6 +3,7 @@
 
 #include "global.h"
 #include "camera.h"
+#include "../opencv/modules/ocl/src/opencl/imgproc_canny.cl"
 #include <Qt/QtCore>
 //#include "webcamtest.h"
 
@@ -11,12 +12,30 @@ class Camera;
 
 struct Blob
 {
+	int id;
 	int x;
 	int y;
 	int x2;
 	int y2;
 	int maxDepth;
+	QColor color;
 };
+
+
+struct yRange
+{
+	int y1;
+	int y2;
+};
+
+struct xyRange
+{
+	int x1;
+	int x2;
+	int y1;
+	int y2;
+};
+
 
 class CamArray : public QThread
 {
@@ -34,17 +53,19 @@ public:
 	bool stopped;
 	void stop();
 	void loadFiles();
-	enum Direction {left, down, right};
-	enum FieldState {no = 0, yes = 1, visited = 2};
 	
 private:
 	QSemaphore *sem;
 	//host buffers
 	unsigned char *h_a, *h_b, *h_c, *h_d;
 	camSettings *h_s;
+	bool *h_blobMap;
 	//device buffers
 	unsigned char *d_a, *d_b, *d_c, *d_d;
 	camSettings *d_s;
+	bool *d_blobMap;
+	yRange *d_yRanges;
+	xyRange *d_xyRanges;
 	
 	int canvX;
 	int canvY;
@@ -58,7 +79,6 @@ private:
 	//void initCUDA();
 	void mainloop();
 	//void mainloopCUDA();
-	void findblob();
 	void output();
     bool white(int x, int y);
 	int threshold;
@@ -68,10 +88,13 @@ private:
 	int bufferStitchedImg;
 	
 	
-	FieldState blobMap[xSize/blobstep][ySize/blobstep];
+	//FieldState blobMap[xSize/blobstep][ySize/blobstep];
 	QList<Blob*> blobs;
+	QList<Blob*> blobs2;
 protected:
+	void findblob();
     int isBlob(int x, int y, Blob* bob, int depth);
+	void trackBlobs();
 };
 
 #endif // CAMARRAY_H

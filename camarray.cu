@@ -79,7 +79,10 @@ __global__ void rotate(unsigned char *image,
 	int myY = yCenter + (-ydiff * cos_ + xdiff * sin_);
 	
 	if (myY < 0 || myY >= height || myX < 0 || myX >= width) // ekliges borderhandling :(
+	{
+		//output[offset + elemID] = 255;
 		return;
+	}
     
 	output[offset + elemID] = image[offset + myY*width + myX];
 }
@@ -115,6 +118,7 @@ __global__ void median(unsigned char *input,
 __global__ void stitch(unsigned char *image,
 					   unsigned char *output,
 					   camSettings *settings,
+					   bool *blobMap,
 					   int width,
 					   int height,
 					   int camWidth,
@@ -130,10 +134,11 @@ __global__ void stitch(unsigned char *image,
 	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
     int elemID = y*width + x;                             // index within linear array
-    
-    if(x < ignoX1 || x > ignoX2 || y < ignoY1 || y > ignoY2)
+	
+	if(x < ignoX1 || x > ignoX2 || y < ignoY1 || y > ignoY2)
 	{
 		output[elemID] = 0;
+		blobMap[elemID] = false;
 	} else {
 		if(elemID > width * height) return;
 		
@@ -157,14 +162,83 @@ __global__ void stitch(unsigned char *image,
 		}
 		
 		if (val / usedCams <= threshold)
-			val = 255;
-		else
-			val = 0;
-		
-		output[elemID] = val;
+		{
+			output[elemID] = 255;
+			blobMap[elemID] = true;
+		} else {
+			output[elemID] = 0;
+			blobMap[elemID] = false;
+		}
 	}
 }
 
+
+__global__ void findBlobs_1(unsigned char *input,
+							yRange *output,
+							int width,
+							int height)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if(x > width) return;
+	
+	bool b = false;
+	int start;
+	int end;
+	
+	int counter = x * height / 2;
+	for(int i = 0; i < height; i++)
+	{
+		if(input[i] == 255)
+		{
+			if(!b){
+				b = true;
+				start = i;
+			} else {
+				end = i;
+			}
+			
+		} else {
+			if(b){
+				b = false;
+				output[counter].y1 = start;
+				output[counter].y2 = end;
+				counter++;
+			}
+		}
+	}
+	output[counter].y2 = 0;
+}
+
+__global__ void findBlobs_2(yRange *input,
+							xyRange *output,
+							int width,
+							int height)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	if(x > width) return;
+	
+	int countLeft = x * height;
+	int countRight = x * height + height / 2;
+	
+	int counter = x * height;
+	
+	while(true)
+	{
+		if(	input[countLeft].y1 < input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1 || 
+			input[countLeft].y2 > input[countRight].y1 && input[countLeft].y2 <= input[countRight].y2 )
+		{
+			output[counter].y1 = fminf(input[countLeft].y1, input[countRight].y1);
+			output[counter].y2 = fmaxf(input[countLeft].y2, input[countRight].y2);
+			output[counter].x1 = x*2;
+			output[counter].x2 = x*2+1;
+			
+			
+			
+			
+		}
+	}
+}
 
 #endif
 
@@ -221,12 +295,18 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 
 #ifdef CUDA
 void CamArray::initBuffers() {
+	int fieldStateSize = canvY * canvX * sizeof(bool);
+	int yRangeSize = canvY * canvX * sizeof(yRange) / 2;
+	int xyRangeSize = canvY * canvX * sizeof(xyRange) / 2;
+	
 	//host buffers
 	cudaMallocHost(&h_a, bufferImgSize, 0x04);
 	cudaMallocHost(&h_b, bufferImgSize);
 	cudaMallocHost(&h_c, bufferImgSize);
 	cudaMallocHost(&h_d, bufferStitchedImg);
 	cudaMallocHost(&h_s, bufferSettings, 0x04);
+	cudaMallocHost(&h_blobMap, fieldStateSize);
+	
 	
 	//device buffers
 	cudaMalloc((void**) &d_a, bufferImgSize);
@@ -234,6 +314,9 @@ void CamArray::initBuffers() {
 	cudaMalloc((void**) &d_c, bufferImgSize);
 	cudaMalloc((void**) &d_d, bufferStitchedImg);
 	cudaMalloc((void**) &d_s, bufferSettings);
+	cudaMalloc((void**) &d_blobMap, fieldStateSize);
+	cudaMalloc((void**) &d_yRanges, yRangeSize);
+	cudaMalloc((void**) &d_yRanges, xyRangeSize);
 }
 #else //NOCUDA
 void CamArray::initBuffers() {
@@ -269,6 +352,9 @@ void CamArray::mainloop()
 	dim3 cudaBlockSize2(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
 	dim3 cudaGridSize2(canvX/cudaBlockSize2.x, canvY/cudaBlockSize2.y);
 	
+	dim3 cudaBlockSize3(canvX);
+	dim3 cudaGridSize3(1);
+	
 	qDebug("x %d   y %d", canvX, canvY);
 	qDebug("grid: %d %d   block: %d %d", cudaGridSize2.x, cudaGridSize2.y, cudaBlockSize2.x, cudaBlockSize2.y);
 	
@@ -283,11 +369,11 @@ void CamArray::mainloop()
 		cudaMemcpy( d_a, h_a, bufferImgSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
-		handleCUDAerror(__LINE__);
-		
-// 		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
+// 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
 // 		handleCUDAerror(__LINE__);
+		
+		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
+		handleCUDAerror(__LINE__);
 		
 		cudaMemcpy( d_s, h_s, bufferSettings, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
@@ -295,21 +381,36 @@ void CamArray::mainloop()
 		rotate<<<cudaGridSize, cudaBlockSize>>>(d_b, d_c, d_s, xSize, ySize);
 		handleCUDAerror(__LINE__);
 		
- 		stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, canvX, canvY, xSize, ySize, numCams, threshold, canvOffX, canvOffX2, canvOffY, canvOffY2);
- 		handleCUDAerror(__LINE__);
+		if(viewmode == 0 || viewmode == 1){
+			cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
+			handleCUDAerror(__LINE__);
+			
+			cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
+			handleCUDAerror(__LINE__);
+		}
 		
- 		cudaMemcpy( h_b, d_b, bufferImgSize, cudaMemcpyDeviceToHost );
- 		handleCUDAerror(__LINE__);
- 		
-  		cudaMemcpy( h_c, d_c, bufferImgSize, cudaMemcpyDeviceToHost );
-  		handleCUDAerror(__LINE__);
+		if(viewmode == 2){
+			//qDebug("x1: %d   X2: %d   y1: %d   y2: %d", canvOffX, canvOffX2, canvOffY, canvOffY);
+			stitch<<<cudaGridSize2, cudaBlockSize2>>>(d_c, d_d, d_s, d_blobMap, canvX, canvY, xSize, ySize, numCams, threshold, canvOffX, canvOffX2, canvOffY, canvOffY2);
+			handleCUDAerror(__LINE__);
+			
+			cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
+			handleCUDAerror(__LINE__);
+			cudaMemcpy( h_blobMap, d_blobMap, bufferStitchedImg, cudaMemcpyDeviceToHost );
+			handleCUDAerror(__LINE__);
+			
+			
 		
-		cudaMemcpy( h_d, d_d, bufferStitchedImg, cudaMemcpyDeviceToHost );
-		handleCUDAerror(__LINE__);
-		
+			findBlobs_1;<<<cudaGridSize3, cudaBlockSize3>>>(d_d, d_yRanges, canvX, canvY);
+			handleCUDAerror(__LINE__);
+			
+// 			findBlobs_2;<<<cudaGridSize3, cudaBlockSize3>>>(d_yRanges, d_xyRanges, canvX, canvY);
+// 			handleCUDAerror(__LINE__);
+			
+			findblob();
+			trackBlobs();
+		}
 // 		qDebug() << "-------------- cuda ready --------------";
-		
-		findblob();
  		output();
 	}
 }
@@ -439,32 +540,69 @@ void CamArray::mainloop()
 		
 		findblob();
 		output();
-// 		break;
+		trackBlobs();
 	}
 }
 #endif
-inline bool CamArray::white(int x, int y) 
+
+void CamArray::findblob()
 {
-	return ((unsigned char)h_c[y*xSize+x]) > threshold;
+	Blob * bob;
+	int b = 0;
+	int w = 0;
+	
+	for (int y = 1; y < canvY / blobstep - 1; y++)
+	{
+		for (int x = 1; x < canvX /blobstep - 1; x++)
+		{
+			if ( h_blobMap[y*canvX+x] != true)
+			{
+				b++;
+				continue;
+			}
+			w++;
+			bob = new Blob;
+			bob->x = bob->x2 = x;
+			bob->y = bob->y2 = y;
+			bob->maxDepth = 0;
+			isBlob(x,y,bob, 0);
+			
+			if (bob->x2-bob->x > 15 &&
+				bob->y2-bob->y > 15 &&
+				bob->x2-bob->x < 70 &&
+				bob->y2-bob->y < 70)
+			{
+				blobs.append(bob);
+// 				qDebug() << "Blob at X:" << bob->x*blobstep << "-" << bob->x2*blobstep
+//  						 << "  Y:" << bob->y*blobstep << "-" << bob->y2*blobstep
+//  						 << " depth: " << bob->maxDepth;
+			}
+			else
+			{
+				delete bob;
+			}
+		}
+	}
+// 	qDebug("blobs: %d   b: %d   w: %d", blobs.count(), b, w);
 }
+
 
 int CamArray::isBlob(int x, int y, Blob * bob, int depth)
 {
 // 	qDebug() << "isBlob " << x << " " << y;
-	if (depth > 3000)
+	if (depth > 10000)
 	{
-		qDebug() << "panic!!!\nBlob at X: " << x*blobstep 
-					   << "  Y: " << y*blobstep
-					   << " depth: " << bob->maxDepth << "value is " << blobMap[x][y] ;
+		return 1;
+// 		qDebug() << "panic!!!\nBlob at X: " << x*blobstep 
+// 					   << "  Y: " << y*blobstep
+// 					   << " depth: " << bob->maxDepth << "value is " << blobMap[y*canvX+x] ;
 	}
-	switch (blobMap[x][y])
+	switch (h_blobMap[y*canvX+x])
 	{
-		case no:
-			blobMap[x][y] = visited;
-		case visited:
+		case false:
 			return 0;
-		case yes:
-			blobMap[x][y] = visited;
+		case true:
+			h_blobMap[y*canvX+x] = false;
 	}
 	if (x < bob->x)
 		bob->x = x;
@@ -481,43 +619,79 @@ int CamArray::isBlob(int x, int y, Blob * bob, int depth)
 	
 	if (x > 0)
 		isBlob(x-1,y, bob, depth+1);
-	if (x < xSize/blobstep -1)
+	if (x < canvX/blobstep -1)
 		isBlob(x+1,y, bob, depth+1);
 	if (y > 0)
 		isBlob(x,y-1, bob, depth+1);
-	if (y < ySize/blobstep -1)
+	if (y < canvY/blobstep -1)
 		isBlob(x,y+1, bob, depth+1);
 	return 1;
 }
 
-void CamArray::findblob()
+
+void CamArray::trackBlobs()
 {
-	Blob * bob;
-	int offset;
-	for (int y = 0; y < ySize / blobstep; y++)
-		for (int x = 0; x < xSize / blobstep; x++)
-			blobMap[x][y] = white(x*blobstep,y*blobstep) ? yes : no;
-	
-	for (int y = 1; y < ySize / blobstep - 1; y++)
-		for (int x = 1; x < xSize /blobstep - 1; x++)
+	foreach(Blob *b, blobs)
+	{
+		int i = 0;
+		int x = (b->x2 + b->x)/2;
+		int y = (b->y2 + b->y)/2;
+		bool colored = false;
+		
+		foreach(Blob* b2, blobs2)
 		{
-			if ( blobMap[x][y] != yes) 
-				continue;
-			bob = new Blob;
-			bob->x = bob->x2 = x;
-			bob->y = bob->y2 = y;
-			bob->maxDepth = 0;
-			isBlob(x,y,bob, 0);
-			if (bob->maxDepth > 5)
-				blobs.append(bob);
-			else
-				delete bob;
-			qDebug() << "Blob at X:" << bob->x*blobstep << "-" << bob->x2*blobstep
- 						   << "  Y:" << bob->y*blobstep << "-" << bob->y2*blobstep
- 						   << " depth: " << bob->maxDepth;
+			int x2 = (b2->x2 + b2->x)/2;
+			int y2 = (b2->y2 + b2->y)/2;
+			if( sqrtf((x-x2)*(x-x2) + (y-y2)*(y-y2)) < maxDistance )
+			{
+				b->color = b2->color;
+				colored = true;
+				b->id = b2->id;
+				//blobs.removeAt(i);
+				break;
+			}
+			i++;
 		}
+		
+		if(!colored)
+		{
+			int c1 = qrand() % 256;
+			int c2 = qrand() % 105 + 151;
+			
+			switch(qrand() % 6)
+			{
+				case 0:
+					b->color = QColor(0, c1, c2);
+					break;
+				case 1:
+					b->color = QColor(0, c2, c1);
+					break;
+				case 2:
+					b->color = QColor(c1, 0, c2);
+					break;
+				case 3:
+					b->color = QColor(c2, 0, c1);
+					break;
+				case 4:
+					b->color = QColor(c1, c2, 0);
+					break;
+				case 5:
+					b->color = QColor(c2, c1, 0);
+					break;
+			}
+		}
+	}
 	
+ 	qDeleteAll(blobs2.begin(), blobs2.end());
+	blobs2.clear();
+ 	
+ 	while(!blobs.empty())
+ 	{
+		blobs2.append(blobs.takeFirst());
+ 	}
+ 	blobs.clear();
 }
+
 
 void CamArray::output()
 {
@@ -525,78 +699,78 @@ void CamArray::output()
 	switch (viewmode)
 	{
 		case 0:
-		for( int n = 0; n < numCams; n++)
-		{
-			for (int y = 0; y < ySize; y++)
+			for( int n = 0; n < numCams; n++)
 			{
-				for (int x = 0; x < xSize; x++)
+				for (int y = 0; y < ySize; y++)
 				{
-					int val = h_a[offset+y*xSize+x];
-					w->i.setPixel(xOffset+x,y, qRgb(val, val, val));
+					for (int x = 0; x < xSize; x++)
+					{
+						int val = h_a[offset+y*xSize+x];
+						w->i.setPixel(xOffset+x,y, qRgb(val, val, val));
+					}
 				}
-			}
 
-			for (int y = 0; y < ySize2; y++)
-			{
-				for (int x = 0; x < xSize2; x++)
+				for (int y = 0; y < ySize2; y++)
 				{
-					int val = h_b[offset+y*xSize2+x];
-					w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
+					for (int x = 0; x < xSize2; x++)
+					{
+						int val = h_b[offset+y*xSize2+x];
+						w->i.setPixel(xOffset2+x,y+ySize, qRgb(val, val, val));
+					}
 				}
-			}
-			for (int y = 0; y < ySize2; y++)
-			{
-				for (int x = 0; x < xSize2; x++)
+				for (int y = 0; y < ySize2; y++)
 				{
-					int val = h_c[offset+y*xSize2+x];
-					w->i.setPixel(xOffset2+x,y+ySize*2, qRgb(val, val, val));
+					for (int x = 0; x < xSize2; x++)
+					{
+						int val = h_c[offset+y*xSize2+x];
+						w->i.setPixel(xOffset2+x,y+ySize*2, qRgb(val, val, val));
+					}
 				}
-			}
-			for (int y = 0; y < ySize2; y++)
-			{
-				for (int x = 0; x < xSize2; x++)
+				for (int y = 0; y < ySize2; y++)
 				{
-					unsigned char val = h_c[offset+y*xSize2+x];
-					if (val <= threshold)
-						val = 0;
-					else
-						val = 255;
-					w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
+					for (int x = 0; x < xSize2; x++)
+					{
+						unsigned char val = h_c[offset+y*xSize2+x];
+						if (val <= threshold)
+							val = 0;
+						else
+							val = 255;
+						w->i.setPixel(xOffset2+x,y+ySize*3, qRgb(val, val, val));
+					}
 				}
+				xOffset  += xSize;
+				xOffset2 += xSize2;
+				offset   += xSize*ySize;
 			}
-			xOffset  += xSize;
-			xOffset2 += xSize2;
-			offset   += xSize*ySize;
-		}
-		
-		break;
+			
+			break;
 		case 1:
-		int yOffset, xMax, yMax, x, y;
-		w->i.fill(Qt::black);
-		
-		for( int n = 0; n < numCams; n++)
-		{
-			xOffset2 = h_s[n].xOffset;
-			yOffset = h_s[n].yOffset;
-			//yMax = yOffset+ySize > canvY ? canvY - yOffset : ySize;
-			for (y = 0; y < ySize; y++)
+			int yOffset, xMax, yMax, x, y;
+			w->i.fill(Qt::black);
+			
+			for( int n = 0; n < numCams; n++)
 			{
-				if (y+yOffset < 0 || y+yOffset >= canvY )
-					continue;
-				//xMax = xOffset+xSize > canvX ? canvX - xOffset : xSize; //xMax = xSize;
-				for (x = 0; x < xSize; x++)
+				xOffset2 = h_s[n].xOffset;
+				yOffset = h_s[n].yOffset;
+				//yMax = yOffset+ySize > canvY ? canvY - yOffset : ySize;
+				for (y = 0; y < ySize; y++)
 				{
-					if (x+xOffset2 < 0 || x+xOffset2 >= canvX)
+					if (y+yOffset < 0 || y+yOffset >= canvY )
 						continue;
-					int val = h_c[offset+y*xSize+x];
-					if(val)
-						w->i.setPixel(x+xOffset2,y+yOffset, qRgb(val, val, val));
+					//xMax = xOffset+xSize > canvX ? canvX - xOffset : xSize; //xMax = xSize;
+					for (x = 0; x < xSize; x++)
+					{
+						if (x+xOffset2 < 0 || x+xOffset2 >= canvX)
+							continue;
+						int val = h_c[offset+y*xSize+x];
+						if(val)
+							w->i.setPixel(x+xOffset2,y+yOffset, qRgb(val, val, val));
+					}
 				}
+				xOffset  += xSize;
+				offset   += xSize*ySize;
 			}
-			xOffset  += xSize;
-			offset   += xSize*ySize;
-		}
-		break;
+			break;
 		case 2:
 			for (y = 0; y < canvY; y++)
 			{
@@ -608,8 +782,6 @@ void CamArray::output()
 			}
 			break;
 	}
-		
-		
 	w->update();
 	//qDebug("available: %d", sem->available());
 }
@@ -666,6 +838,13 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFree(d_s);
 	handleCUDAerror(__LINE__);
+	cudaFree(d_blobMap);
+	handleCUDAerror(__LINE__);
+	cudaFree(d_yRanges);
+	handleCUDAerror(__LINE__);
+	cudaFree(d_xyRanges);
+	handleCUDAerror(__LINE__);
+	
 	cudaFreeHost(h_a);
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_b);
@@ -676,13 +855,17 @@ CamArray::~CamArray()
 	handleCUDAerror(__LINE__);
 	cudaFreeHost(h_s);
 	handleCUDAerror(__LINE__);
+	cudaFreeHost(h_blobMap);
+	handleCUDAerror(__LINE__);
 #else
 	free(h_a);
 	free(h_b);
 	free(h_c);
 	free(h_d);
 	free(h_s);
+	free(h_blobMap);
 #endif
 	qDebug("Memory deallocated successfully\n");
 }
+
 
