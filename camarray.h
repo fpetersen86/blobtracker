@@ -104,7 +104,7 @@ private:
 	QList<Blob*> blobs2;
 protected:
 	void findblob();
-    int isBlob(int x, int y, Blob* bob, int depth);
+    void isBlob(int x, int y, Blob* bob, int depth);
 	void trackBlobs();
 	void findBlobs_3();
 	bool mergeBlobs(Blob *bob, Blob* notBob);

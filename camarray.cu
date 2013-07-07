@@ -9,24 +9,32 @@
 
 
 
+/*-------------------------------------------------------------------------------------------/
 
+lens correction kernel
+This kernel corrects distorted images due to uncorrected camera lenses.
+
+parameters:
+	unsigned char *image	all input camera images consecutively in one buffer
+	unsigned char *output	buffer for the corrected images
+	int width				width of one camera image
+	int height				height of one camera image
+	float strength			correction strength -> how much shall each image be corrected
+	float zoom				each image gets zoomed by this amount, so that only useful data remains
+
+/-------------------------------------------------------------------------------------------*/
 
 __global__ void lensCorrection(unsigned char *image,
 							   unsigned char *output,
 							   int width,
 							   int height,
-							   int width2,
-							   int height2,
 							   float strength,
 							   float zoom)
 {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int x = blockIdx.x * blockDim.x + threadIdx.x; 
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width2 + x;                             // index within linear array
+    int elemID = y*width + x;
     int offset = blockIdx.z * width * height;
-    
-    x += (width-width2)/2;
-	y += (height-height2)/2;
 	
 	int halfWidth = width / 2;
 	int halfHeight = height / 2;
@@ -52,6 +60,57 @@ __global__ void lensCorrection(unsigned char *image,
 }
 
 
+/*-------------------------------------------------------------------------------------------/
+
+median kernel
+This kernel reduces noise
+
+parameters:
+	unsigned char *input	all input camera images consecutively in one buffer
+	unsigned char *output	buffer for the rotated images
+	int width				width of one camera image
+	int height				height of one camera image
+
+/-------------------------------------------------------------------------------------------*/
+
+__global__ void median(unsigned char *input,
+					   unsigned char *output,
+					   int width,
+					   int height)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int elemID = y*width + x;
+    int offset = blockIdx.z * width * height;
+
+    //border handling stolen from assignment 4 ;)
+	int borderFlag = (x > 0);
+	unsigned char leftNeighb = input[offset + elemID - borderFlag];
+	borderFlag = (x < (width - 1));
+	unsigned char rightNeighb = input[offset + elemID + borderFlag];
+	borderFlag = -(y > 0);
+	unsigned char topNeighb = input[offset + elemID - (borderFlag & width)];	
+	borderFlag = -(y < (height - 1));
+	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
+	unsigned char currElement = input[offset + elemID];
+	
+	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + topNeighb + bottomNeighb) / 5;
+}
+
+
+/*-------------------------------------------------------------------------------------------/
+
+lens rotation kernel
+This kernel rotates each camera if necessary. It is necessary if they are not mounted perfectly.
+
+parameters:
+	unsigned char *image	all input camera images consecutively in one buffer
+	unsigned char *output	buffer for the corrected images
+	camSettings *settings	a struct containing settings for each camera
+	int width				width of one camera image
+	int height				height of one camera image
+
+/-------------------------------------------------------------------------------------------*/
 
 __global__ void rotate(unsigned char *image,
 					   unsigned char *output,
@@ -59,9 +118,9 @@ __global__ void rotate(unsigned char *image,
 					   int width,
 					   int height)
 {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width + x;                             // index within linear array
+    int elemID = y*width + x;
     int offset = blockIdx.z * width * height;
 	
 	
@@ -88,32 +147,28 @@ __global__ void rotate(unsigned char *image,
 }
 
 
+/*-------------------------------------------------------------------------------------------/
 
-__global__ void median(unsigned char *input,
-					   unsigned char *output,
-					   int width,
-					   int height)
-{
-	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width + x;                             // index within linear array
-    int offset = blockIdx.z * width * height;
+stitching kernel
+This kernel merges all the input images into one large binary image
 
-	// compute cells needed for update (neighbors + central element)
-	int borderFlag = (x > 0);                              // boolean values enable border handling without thread divergence
-	unsigned char leftNeighb = input[offset + elemID - borderFlag];
-	borderFlag = (x < (width - 1));
-	unsigned char rightNeighb = input[offset + elemID + borderFlag];
-	borderFlag = -(y > 0);									// unary minus turns boolean value into boolean bitwise mask
-	unsigned char topNeighb = input[offset + elemID - (borderFlag & width)];	
-	borderFlag = -(y < (height - 1));
-	unsigned char bottomNeighb = input[offset + elemID + (borderFlag & width)];
-	unsigned char currElement = input[offset + elemID];
-	
-	output[elemID + offset] = (currElement + leftNeighb + rightNeighb + topNeighb + bottomNeighb) / 5;
-}
+parameters:
+	unsigned char *image	all input camera images consecutively in one buffer
+	unsigned char *output	buffer for the corrected images
+	camSettings *settings	a struct containing settings for each camera
+	bool *blobMap			a bool map that matches white pixels to true
+	int width				width of the final image
+	int height				height of the final image
+	int camWidth			width of one camera image
+	int camHeight			height of one camera image
+	int numCams				number of cameras used
+	int threshold			the threshold for the binary conversion
+	int ignoX1				all pixels left of this value are ignored -> always set to black
+	int ignoX2				all pixels right of this value are ignored -> always set to black
+	int ignoY1				all pixels above of this value are ignored -> always set to black
+	int ignoY2				all pixels below of this value are ignored -> always set to black
 
-
+/-------------------------------------------------------------------------------------------*/
 
 __global__ void stitch(unsigned char *image,
 					   unsigned char *output,
@@ -131,9 +186,9 @@ __global__ void stitch(unsigned char *image,
 					   int ignoY2
   					)
 {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;         // coordinates within 2d array follow from block index and thread index within block
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int elemID = y*width + x;                             // index within linear array
+    int elemID = y*width + x;
 	
 	if(x < ignoX1 || x > ignoX2 || y < ignoY1 || y > ignoY2)
 	{
@@ -172,6 +227,18 @@ __global__ void stitch(unsigned char *image,
 	}
 }
 
+/*-------------------------------------------------------------------------------------------/
+
+blob-detection kernel 1
+This kernel looks at each column and saves each range of white pixels as a yRange (see camarray.h) to the output buffer
+
+parameters:
+	unsigned char *input	the binary input image
+	yRange *output			buffer for all found ranges
+	int width				width of the image
+	int height				height of the image
+
+/-------------------------------------------------------------------------------------------*/
 
 __global__ void findBlobs_1(unsigned char *input,
 							yRange *output,
@@ -179,17 +246,17 @@ __global__ void findBlobs_1(unsigned char *input,
 							int height)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-
+	
 	if(x > width) return;
 	
 	bool b = false;
-	int start;
-	int end;
-	
+	int start = 0;
+	int end = 0;
+
 	int counter = x * height / 2;
 	for(int i = 0; i < height; i++)
 	{
-		if(input[i] == 255)
+		if(input[i*width+x] != 0)
 		{
 			if(!b)
 			{
@@ -219,13 +286,27 @@ __global__ void findBlobs_1(unsigned char *input,
 	output[counter].y2 = 0;
 }
 
+
+/*-------------------------------------------------------------------------------------------/
+
+blob-detection kernel 2
+This kernel compares the yRanges of two columns and merges those that touch each other
+
+parameters:
+	yRange *input			all yRanges found by findBlobs_1
+	xyRange *output			buffer for all found xyRanges (see camarray.h)
+	int width				width of the image
+	int height				height of the image
+
+/-------------------------------------------------------------------------------------------*/
+
 __global__ void findBlobs_2(yRange *input,
 							xyRange *output,
 							int width,
 							int height)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	if(x > width) return;
+	if(x > width / 2) return;
 	
 	int countLeft = x * height;
 	int countRight = x * height + height / 2;
@@ -236,6 +317,10 @@ __global__ void findBlobs_2(yRange *input,
 	
 	while(true)
 	{
+// 		if (input[countRight].y2 || input[countRight].y2)
+// 			printf("%d, y: %d - %d \t\t  R_ID: y: %d - %d\n", x, input[countLeft].y1 , input[countLeft].y2 , input[countRight].y1 , input[countRight].y2 );
+// 		break;
+	
 		if(input[countRight].y2 == input[countLeft].y2 == 0)
 			break;
 		if(	input[countLeft].y1 <= input[countRight].y2 && input[countLeft].y1 >= input[countRight].y1 || 
@@ -263,17 +348,21 @@ __global__ void findBlobs_2(yRange *input,
 			merged = false;
 			countLeft++;
 			countRight++;
+			printf("id: %d, x: %d - %d, y: %d - %d\n", x, output[counter].x1 , output[counter].x2 , output[counter].y1 , output[counter].y2 );
 			counter++;
 		}
 		else if( input[countLeft].y2 > input[countRight].y2 || !input[countRight].y2)
 		{
 			output[counter].y1 = input[countRight].y1;
 			output[counter].y2 = input[countRight].y2;
+			if (output[counter].y2 == 0)
+				printf("bah1");
 			if (!merged)
 			{
 				output[counter].x1 = output[counter].x2 = x*2+1;
 			}
 			countRight++;
+			printf("id: %d, x: %d - %d, y: %d - %d\n", x, output[counter].x1 , output[counter].x2 , output[counter].y1 , output[counter].y2 );
 			counter++;
 			merged = false;
 		}
@@ -281,19 +370,38 @@ __global__ void findBlobs_2(yRange *input,
 		{
 			output[counter].y1 = input[countLeft].y1;
 			output[counter].y2 = input[countLeft].y2;
+			if (output[counter].y2 == 0)
+				printf("bah2");
 			if (!merged)
 			{
 				output[counter].x1 = output[counter].x2 = x*2;
 			}
 			countLeft++;
+			printf("id: %d, x: %d - %d, y: %d - %d\n", x, output[counter].x1 , output[counter].x2 , output[counter].y1 , output[counter].y2 );
 			counter++;
 			merged = false;
 		}
 	}
 	output[counter].y2 = 0;
+	if (counter - x * height && 1 == 0)
+	{ 
+		printf("thread %d, counter= %d, last= %d\n", x, counter-(x * height), output[counter - x * height - 2].y2);
+		
+	}
 }
 
 #endif
+
+
+/*-------------------------------------------------------------------------------------------/
+
+blob-detection function 3
+This function merges all xyRanges found by findBlobs_2 that touch each other, so that we get the complete blobs
+
+parameters:
+	none. It accesses the host buffer h_xyRanges directly
+
+/-------------------------------------------------------------------------------------------*/
 
 void CamArray::findBlobs_3()
 {
@@ -301,9 +409,15 @@ void CamArray::findBlobs_3()
 	Blob *bob;
 	
 	for (int i=0; i < canvX; i++)
+	{
 		for (int j=0; j < 1; j++)
+		{
 			if (h_xyRanges[i*canvY+j].y2 != 0)
+			{
 				qDebug(" x %d %d %d", i, j, h_xyRanges[i*canvY+j].y2);
+			}
+		}
+	}
 			
 	
 	for (int i=0; i < canvX; i++)
@@ -323,7 +437,7 @@ void CamArray::findBlobs_3()
 			bob->maxDepth = 50;
 			bb.append(bob);
 			j++;
-			qDebug() << "bob";
+// 			qDebug() << "bob";
 		}
 	}
 	
@@ -348,12 +462,42 @@ void CamArray::findBlobs_3()
 	blobs = bb;
 }
 
-bool CamArray::mergeBlobs(Blob *bob, Blob* notBob)
+
+/*-------------------------------------------------------------------------------------------/
+
+blob-merging function
+Helper function of findBlobs_3. It checks, if two blobs can be merged
+
+parameters:
+	Blob *blob1				The first blob to be merged
+	Blob* blob2				The other blob to be merged
+	
+output:
+	true 					if they can be merged
+	false					if not
+/-------------------------------------------------------------------------------------------*/
+
+bool CamArray::mergeBlobs(Blob *blob1, Blob* blob2)
 {
-	QRect a(bob->x, bob->y, bob->x2-bob->x, bob->y2 - bob->y);
-	QRect b(notBob->x -1, notBob->y-1, notBob->x2-notBob->x+1, notBob->y2 - notBob->y+1);
+	QRect a(blob1->x, blob1->y, blob1->x2-blob1->x, blob1->y2 - blob1->y);
+	QRect b(blob2->x -1, blob2->y-1, blob2->x2-blob2->x+1, blob2->y2 - blob2->y+1);
 	return a.intersects(b);
 }
+
+
+
+/*-------------------------------------------------------------------------------------------/
+
+constructor
+it initializes all cameras that are found in the system as a Camera object
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
+
 
 CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 {
@@ -379,6 +523,7 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 		imgTest = true;
 		numCams = testimages;
 	}
+	
 	p->resizeImage(numCams);
 	QString c;
 	sem = new QSemaphore(numCams);
@@ -388,11 +533,11 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 	bufferSettings = numCams * sizeof(camSettings);
 	qDebug("buffer   x: %d   y: %d", canvX, canvY);
 	bufferStitchedImg = canvX * canvY * sizeof(char);
-	//threshold = 20;
 	
 	initBuffers();
 	
 	if (!imgTest)
+	{
 		for(int i = 0; i < numCams; i++)
 		{
 			c = camList.at(i);
@@ -401,8 +546,7 @@ CamArray::CamArray(webcamtest* p, int testimages) : QThread(p)
 			h_s[i].xOffset = 0;
 			h_s[i].yOffset = 0;
 		}
-
-	
+	}
 }
 
 #ifdef CUDA
@@ -425,6 +569,7 @@ void CamArray::initBuffers() {
 	cudaMalloc((void**) &d_a, bufferImgSize);
 	cudaMalloc((void**) &d_b, bufferImgSize);
 	cudaMalloc((void**) &d_c, bufferImgSize);
+	qDebug("x %d, y %d, = %d", canvX, canvY, bufferStitchedImg);
 	cudaMalloc((void**) &d_d, bufferStitchedImg);
 	cudaMalloc((void**) &d_s, bufferSettings);
 	cudaMalloc((void**) &d_blobMap, fieldStateSize);
@@ -457,6 +602,20 @@ void CamArray::run()
 }
 
 #ifdef CUDA
+
+
+/*-------------------------------------------------------------------------------------------/
+
+mainloop of the program
+The mainloop waits for all cameras to capture one frame and then copies the images to the gpu and launches the kernels and the blobtracking function. It optionally copies the output image back to the host, so that the results can be shown on screen.
+
+parameters:
+	none
+	
+output:
+	it optionally shows the resulting image and blobs
+/-------------------------------------------------------------------------------------------*/
+
 void CamArray::mainloop()
 {
 	dim3 cudaBlockSize(16,16);  // image is subdivided into rectangular tiles for parallelism - this variable controls tile size
@@ -467,6 +626,9 @@ void CamArray::mainloop()
 	
 	dim3 cudaBlockSize3(canvX);
 	dim3 cudaGridSize3(1);
+	
+	dim3 cudaBlockSize4(canvX/2);
+	dim3 cudaGridSize4(1);
 	
 	qDebug("x %d   y %d", canvX, canvY);
 	qDebug("grid: %d %d   block: %d %d", cudaGridSize2.x, cudaGridSize2.y, cudaBlockSize2.x, cudaBlockSize2.y);
@@ -482,7 +644,7 @@ void CamArray::mainloop()
 		cudaMemcpy( d_a, h_a, bufferImgSize, cudaMemcpyHostToDevice );
 		handleCUDAerror(__LINE__);
 		
-// 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, xSize2, ySize2, lcStrength, lcZoom);
+// 		lensCorrection<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize, lcStrength, lcZoom);
 // 		handleCUDAerror(__LINE__);
 		
 		median<<<cudaGridSize, cudaBlockSize>>>(d_a, d_b, xSize, ySize);
@@ -517,24 +679,31 @@ void CamArray::mainloop()
 			findBlobs_1<<<cudaGridSize3, cudaBlockSize3>>>(d_d, d_yRanges, canvX, canvY);
 			handleCUDAerror(__LINE__);
 			
-			findBlobs_2<<<cudaGridSize3, cudaBlockSize3>>>(d_yRanges, d_xyRanges, canvX, canvY);
+			findBlobs_2<<<cudaGridSize4, cudaBlockSize4>>>(d_yRanges, d_xyRanges, canvX, canvY);
 			handleCUDAerror(__LINE__);
 			
 			cudaMemcpy( h_xyRanges, d_xyRanges, xyRangeSize, cudaMemcpyDeviceToHost );
 			handleCUDAerror(__LINE__);
 			
 			findBlobs_3();
-			//findblob();
+// 			findblob();
 			trackBlobs();
+			
 		}
 // 		qDebug() << "-------------- cuda ready --------------";
  		output();
+   		if (myBreak)
+			break;
 	}
 }
 
 #endif
 
 #ifdef NOCUDA
+/*-------------------------------------------------------------------------------------------/
+cpu implementation of the mainloop and the kernels
+/-------------------------------------------------------------------------------------------*/
+
 void CamArray::mainloop()
 {
 	while(!stopped)
@@ -661,7 +830,17 @@ void CamArray::mainloop()
 	}
 }
 #endif
+/*-------------------------------------------------------------------------------------------/
 
+cpu blob-detection function
+It iterates over the blobMap and checks if it detects a white pixel. If it finds one it starts the recursive function isBlob() for that pixel. After that it puts the found blob (if it has the right size -> not too big/small) in the blob list.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 void CamArray::findblob()
 {
 	Blob * bob;
@@ -703,13 +882,27 @@ void CamArray::findblob()
 // 	qDebug("blobs: %d   b: %d   w: %d", blobs.count(), b, w);
 }
 
+/*-------------------------------------------------------------------------------------------/
 
-int CamArray::isBlob(int x, int y, Blob * bob, int depth)
+cpu blob-expansion function
+this function starts at one pixel coordinate and from there it looks at the neighboring pixels if they are also part of the blob. if they are it merges them into the blob. Each visited pixel is set to black, so that findblob() doesn't look at those again.
+
+parameters:
+	int x				starting x coordinate
+	int y				starting y coordinate
+	Blob * bob			the blob that gets expanded
+	int depth			current depth
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
+
+void CamArray::isBlob(int x, int y, Blob * bob, int depth)
 {
 // 	qDebug() << "isBlob " << x << " " << y;
 	if (depth > 10000)
 	{
-		return 1;
+		return;
 // 		qDebug() << "panic!!!\nBlob at X: " << x*blobstep 
 // 					   << "  Y: " << y*blobstep
 // 					   << " depth: " << bob->maxDepth << "value is " << blobMap[y*canvX+x] ;
@@ -717,7 +910,7 @@ int CamArray::isBlob(int x, int y, Blob * bob, int depth)
 	switch (h_blobMap[y*canvX+x])
 	{
 		case false:
-			return 0;
+			return;
 		case true:
 			h_blobMap[y*canvX+x] = false;
 	}
@@ -742,9 +935,20 @@ int CamArray::isBlob(int x, int y, Blob * bob, int depth)
 		isBlob(x,y-1, bob, depth+1);
 	if (y < canvY/blobstep -1)
 		isBlob(x,y+1, bob, depth+1);
-	return 1;
 }
 
+
+/*-------------------------------------------------------------------------------------------/
+
+cpu blob-tracking function
+this function compares the found blobs with the blobs from the frame before and tries to match the new ones to the old ones. If a blob is considered to be the same as one of the old blobs it's id and color are set to the old one's.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 void CamArray::trackBlobs()
 {
@@ -809,6 +1013,18 @@ void CamArray::trackBlobs()
  	blobs.clear();
 }
 
+
+/*-------------------------------------------------------------------------------------------/
+
+image painting function
+this is a rather inefficient way to paint the camera images and kernel output to screen. It has three modes in which it displays different things.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 void CamArray::output()
 {
@@ -909,6 +1125,18 @@ void CamArray::stop()
 }
 
 
+/*-------------------------------------------------------------------------------------------/
+
+file loading function
+Instead of video capture this function can also load images from disc. It was only used for early testing and it is not known whether it still works or not.
+
+parameters:
+	none
+	
+return:
+	none
+/-------------------------------------------------------------------------------------------*/
+
 void CamArray::loadFiles()
 {
 	QImage fileImage;
@@ -929,6 +1157,19 @@ void CamArray::loadFiles()
 	}
 	w->update();
 }
+
+
+/*-------------------------------------------------------------------------------------------/
+
+deconstructor
+it does, what a deconstructor shall do. unload everything.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 CamArray::~CamArray()
 {
