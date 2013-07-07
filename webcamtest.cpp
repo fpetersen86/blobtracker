@@ -8,6 +8,16 @@
 #include <QtGui/QAction>
 #include "global.h"
 
+/*-------------------------------------------------------------------------------------------/
+
+constructor
+This constructs the GUI, loads some settings and finaly starts the CamArray.
+
+parameters:
+	none
+	
+/-------------------------------------------------------------------------------------------*/
+
 webcamtest::webcamtest()
 {
 	QCoreApplication::setApplicationName("Blobtracker");
@@ -103,6 +113,18 @@ webcamtest::webcamtest()
 	ca->start();
 	w->show();
 }
+/*-------------------------------------------------------------------------------------------/
+
+
+
+parameters:
+	Blob *blob1				The first blob to be merged
+	Blob* blob2				The other blob to be merged
+	
+output:
+	true 					if they can be merged
+	false					if not
+/-------------------------------------------------------------------------------------------*/
 
 void webcamtest::resizeImage(int num)
 {

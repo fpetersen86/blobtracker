@@ -15,6 +15,20 @@ const int xSize = 320;
 const int ySize = 240;
 const int framerate = 125;
 
+/*-------------------------------------------------------------------------------------------/
+
+The Camera constructor
+Does the Camera setup.
+
+parameters:
+	const char* device		Path to the camera device
+	const int id			Camera ID
+	QSemaphore* sem			the Semaphore we use for synchronization
+	unsigned char* myBuffer	the Buffer we want the driver to write its data to
+	camSettings* cset		pointer to the settings of this Camera
+
+/-------------------------------------------------------------------------------------------*/
+
 Camera::Camera(const char* device, const int id, QSemaphore* sem, unsigned char* myBuffer, camSettings* cset) : QThread(NULL)
 {
 	settings = cset;
@@ -81,6 +95,15 @@ Camera::Camera(const char* device, const int id, QSemaphore* sem, unsigned char*
 
 	}
 }
+/*-------------------------------------------------------------------------------------------/
+
+deconstructor
+it does, what a deconstructor shall do. unload everything.
+
+parameters:
+	none
+	
+/-------------------------------------------------------------------------------------------*/
 
 Camera::~Camera()
 {
@@ -131,6 +154,19 @@ void Camera::stop()
 	stopped = true;
 }
 
+/*-------------------------------------------------------------------------------------------/
+
+The Camera loop.
+It gets data from its camera until Camera::stop is called.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
+
+
 void Camera::loop()
 {
 	//setbuf(stdout, NULL);
@@ -173,6 +209,18 @@ void Camera::loop()
 	type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ioctl(fd, VIDIOC_STREAMOFF, &type);
 }
+
+/*-------------------------------------------------------------------------------------------/
+
+Data output function.
+Copies camera data to its place in the h_a buffer.
+
+parameters:
+	none
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 void Camera::doOurStuff(void* bufStart, __u32 size, int index)
 {
