@@ -9,31 +9,37 @@
 class webcamtest;
 class Camera;
 
-struct Blob
+struct Blob			// A blob, defined as a rectangle.
 {
-	int id;
-	int x;
-	int y;
-	int x2;
-	int y2;
-	int maxDepth;
-	QColor color;
+	int id;			// Id of the blob. Not really used.
+	int x;			// left edge
+	int y;			// upper edge
+	int x2;			// right edge
+	int y2;			// bottom edge
+	int maxDepth;	// unimportant
+	QColor color;	// color of the rectangle around the blob
 };
 
 
-struct yRange
+struct yRange		// used to save per-line ranges (part of blob) of white pixels
 {
-	int y1;
-	int y2;
+	int y1;			// start
+	int y2;			// end
 };
 
-struct xyRange
+struct xyRange		// used to save 2-dimensional ranges (part of blob) of white pixels
 {
-	int x1;
-	int x2;
-	int y1;
-	int y2;
+	int x1;			// left edge
+	int x2;			// right edge
+	int y1;			// upper edge
+	int y2;			// bottom edge
 };
+
+/*-------------------------------------------------------------------------------------------/
+
+	This class handles all Camera objects and all the GPU-code.
+
+/-------------------------------------------------------------------------------------------*/
 
 
 class CamArray : public QThread

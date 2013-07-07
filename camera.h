@@ -9,12 +9,25 @@
 
 //class webcamtest;
 
+/*-------------------------------------------------------------------------------------------/
+
+	Struct for camera-specific settings. It is an isolated struct because at one point 
+	we forward it to the GPU.
+
+/-------------------------------------------------------------------------------------------*/
+
 struct camSettings
 {
 	float angle;
 	int xOffset;
 	int yOffset;
 };
+
+/*-------------------------------------------------------------------------------------------/
+
+	This class handles setup and input of one camera.
+
+/-------------------------------------------------------------------------------------------*/
 
 class Camera : public QThread
 {

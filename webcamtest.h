@@ -8,6 +8,12 @@
 
 //class CamArray;
 
+/*-------------------------------------------------------------------------------------------/
+
+	This class is the part of the user interface.
+
+/-------------------------------------------------------------------------------------------*/
+
 class CamSettingsUi : public QWidget
 {
 Q_OBJECT
@@ -16,6 +22,12 @@ public:
     CamSettingsUi(Camera *cam, QWidget* parent = 0);
     virtual ~CamSettingsUi() {};
 };
+
+/*-------------------------------------------------------------------------------------------/
+
+	This is the user interface.
+
+/-------------------------------------------------------------------------------------------*/
 
 class webcamtest : public QMainWindow
 {

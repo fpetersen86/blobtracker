@@ -113,17 +113,14 @@ webcamtest::webcamtest()
 	ca->start();
 	w->show();
 }
+
 /*-------------------------------------------------------------------------------------------/
-
-
+This function takes care of resizing the Output Window
 
 parameters:
-	Blob *blob1				The first blob to be merged
-	Blob* blob2				The other blob to be merged
-	
+	int num				Number of cameras.
 output:
-	true 					if they can be merged
-	false					if not
+	none
 /-------------------------------------------------------------------------------------------*/
 
 void webcamtest::resizeImage(int num)
@@ -133,6 +130,15 @@ void webcamtest::resizeImage(int num)
 	i = QImage(x, y, QImage::Format_RGB32);
 	resize(x,y);
 }
+
+/*-------------------------------------------------------------------------------------------/
+This function also takes care of resizing the Output Window
+
+parameters:
+	none
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 void webcamtest::resizeMe()
 {
@@ -145,6 +151,12 @@ void webcamtest::resizeMe()
 		resizeImage(ca->numCams);
 }
 
+/*-------------------------------------------------------------------------------------------/
+
+deconstructor
+it does, what a deconstructor shall do. Stop the CamArray, save Settings.
+
+/-------------------------------------------------------------------------------------------*/
 
 webcamtest::~webcamtest()
 {
@@ -163,6 +175,19 @@ webcamtest::~webcamtest()
 	ca->stop();
 	ca->wait();
 }
+
+/*-------------------------------------------------------------------------------------------/
+
+Paintevent
+Paints the output window.
+
+
+parameters:
+	QPaintEvent* e		This is given to us by Qt and contains information that we just forward.
+	
+output:
+	none
+/-------------------------------------------------------------------------------------------*/
 
 void webcamtest::paintEvent(QPaintEvent* e)
 {
@@ -227,6 +252,16 @@ void webcamtest::setColor()
 	myColor.setNamedColor("#" + ui->colEdit->displayText());
 }
 
+/*-------------------------------------------------------------------------------------------/
+
+Constructor of CamSettingsUi
+This constructs the GUI part for camera-specific settings.
+
+parameters:
+	Camera* cam			Which Camera object to handle.
+	QWidget* parent		parent Widget (webcamtest)
+
+/-------------------------------------------------------------------------------------------*/
 CamSettingsUi::CamSettingsUi(Camera* cam, QWidget* parent): QWidget(parent)
 {
 	ui = new Ui_camSettings();

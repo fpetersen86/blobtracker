@@ -494,8 +494,6 @@ it initializes all cameras that are found in the system as a Camera object
 parameters:
 	none
 	
-output:
-	none
 /-------------------------------------------------------------------------------------------*/
 
 
@@ -586,6 +584,17 @@ void CamArray::initBuffers() {
 }
 #endif
 
+
+/*-------------------------------------------------------------------------------------------/
+
+run function
+this code is executed when CamArray is started as a thread
+It does some setups and starts the main loop of the thread.
+
+parameters:
+	none
+	
+/-------------------------------------------------------------------------------------------*/
 
 void CamArray::run()
 {
@@ -1164,11 +1173,6 @@ void CamArray::loadFiles()
 deconstructor
 it does, what a deconstructor shall do. unload everything.
 
-parameters:
-	none
-	
-output:
-	none
 /-------------------------------------------------------------------------------------------*/
 
 CamArray::~CamArray()

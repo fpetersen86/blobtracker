@@ -100,9 +100,6 @@ Camera::Camera(const char* device, const int id, QSemaphore* sem, unsigned char*
 deconstructor
 it does, what a deconstructor shall do. unload everything.
 
-parameters:
-	none
-	
 /-------------------------------------------------------------------------------------------*/
 
 Camera::~Camera()
@@ -122,6 +119,18 @@ Camera::~Camera()
 	close(fd);
 	qDebug("Camera stopped: id %d, fd %d", id, fd);
 }
+
+
+/*-------------------------------------------------------------------------------------------/
+
+run function
+this code is executed when Camera is started as a thread
+It does some setups and starts the main loop of the thread.
+
+parameters:
+	none
+	
+/-------------------------------------------------------------------------------------------*/
 
 void Camera::run()
 {
